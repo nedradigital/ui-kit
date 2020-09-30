@@ -275,6 +275,113 @@ export const tableData: TableProps<typeof rows[number]> = {
   filters,
 };
 
+export const tableWithMultiLevelHeadersData = {
+  columns: [
+    {
+      title: 'Месторождение',
+      columns: [
+        {
+          title: 'Вес общий',
+          columns: [
+            {
+              title: 'Вес, г.',
+              accessor: 'weight_g',
+              align: 'center',
+            },
+            {
+              title: 'Вес, кг.',
+              accessor: 'weight_kg',
+              align: 'center',
+            },
+          ],
+        },
+        {
+          title: 'Год',
+          accessor: 'year',
+          align: 'center',
+        },
+        {
+          title: 'Распределение',
+          accessor: 'distribution',
+          align: 'left',
+        },
+      ],
+    },
+    {
+      title: 'Отправка',
+      accessor: 'dispatch',
+      align: 'left',
+    },
+    {
+      title: 'Приход',
+      accessor: 'arrival',
+      align: 'left',
+    },
+    {
+      title: 'Ответственный',
+      columns: [
+        {
+          title: 'Смена 1',
+          accessor: 'responsible_1',
+          align: 'left',
+        },
+        {
+          title: 'Смена 2',
+          accessor: 'responsible_2',
+          align: 'left',
+          sortable: true,
+        },
+      ],
+    },
+  ],
+  rows: [
+    {
+      id: 'row1',
+      weight_g: '1.398',
+      weight_kg: '~ 0',
+      year: 2007,
+      distribution: 'Отсутствует',
+      dispatch: '12.09.2020',
+      arrival: '18.09.2020',
+      responsible_1: 'Иванов И.И.',
+      responsible_2: 'Сидоров И.И.',
+    },
+    {
+      id: 'row2',
+      weight_g: '2.398',
+      weight_kg: '~ 0',
+      year: 2017,
+      distribution: 'В процессе',
+      dispatch: '1.09.2020',
+      arrival: '8.09.2020',
+      responsible_1: 'Иванов П.П.',
+      responsible_2: 'Петров П.П.',
+    },
+    {
+      id: 'row3',
+      weight_g: '3.398',
+      weight_kg: 'до 1',
+      year: 2020,
+      distribution: 'В процессе',
+      dispatch: '11.09.2020',
+      arrival: '28.10.2020',
+      responsible_1: 'Сидоров С.С.',
+      responsible_2: 'Иванов С.С.',
+    },
+    {
+      id: 'row4',
+      weight_g: '4.398',
+      weight_kg: 'до 10',
+      year: 2010,
+      distribution: 'Есть',
+      dispatch: '9.09.2020',
+      arrival: '13.09.2020',
+      responsible_1: 'Петров И.И.',
+      responsible_2: 'Иванов И.И.',
+    },
+  ],
+};
+
 const badgeParams: React.ComponentProps<typeof Badge> = {
   view: 'filled',
   minified: true,

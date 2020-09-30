@@ -3,7 +3,11 @@ import './Table.stories.css';
 import React from 'react';
 import { boolean, number, object, select, text } from '@storybook/addon-knobs';
 
-import { tableData, tableWithBagdeData } from '../__mock__/data.mock';
+import {
+  tableData,
+  tableWithBagdeData,
+  tableWithMultiLevelHeadersData,
+} from '../__mock__/data.mock';
 import { updateAt } from '../../../utils/array';
 import { cn } from '../../../utils/bem';
 import { createMetadata, createStory } from '../../../utils/storybook';
@@ -39,7 +43,7 @@ const getFiltersKnob = (filters?: Filters<TableRow>): Filters<TableRow> | undefi
   return isFilterable ? filters : undefined;
 };
 
-const getKnobs = (replacedProps?: Partial<Props<TableRow>>): Props<TableRow> => {
+const getKnobs = (replacedProps?: Partial<Props<TableRow>> | any): Props<TableRow> => {
   const props = { ...defaultProps, ...replacedProps };
 
   const zebraStripedProp = select('zebraStriped', ['', ...zebraStriped], props.zebraStriped);
@@ -63,6 +67,13 @@ const getKnobs = (replacedProps?: Partial<Props<TableRow>>): Props<TableRow> => 
 export const Interactive = createStory(() => <Table {...getKnobs()} />, {
   name: 'обычная',
 });
+
+export const WithMultiLevelHeaders = createStory(
+  () => <Table {...getKnobs(tableWithMultiLevelHeadersData)} />,
+  {
+    name: 'с многоуровневым заголовком',
+  },
+);
 
 const WithActiveRowContent = (): JSX.Element => {
   const [activeRow, setActiveRow] = React.useState<string>();

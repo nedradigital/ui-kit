@@ -26,7 +26,14 @@ import {
   isSelectedFiltersPresent,
   useSelectedFilters,
 } from './filtering';
-import { getColumnLeftOffset, getColumnsSize, getNewSorting } from './helpers';
+import {
+  getColumnLeftOffset,
+  getColumnsSize,
+  getLastChildrenArray,
+  getMaxLevel,
+  getNewSorting,
+  handleColumns,
+} from './helpers';
 
 const cnTable = cn('Table');
 
@@ -63,7 +70,11 @@ export type TableColumn<T extends TableRow> = {
   align?: HorizontalAlign;
   withoutPadding?: boolean;
   width?: ColumnWidth;
-} & ({ sortable?: false } | { sortable: true; sortByField?: RowField<T> });
+} & ({ sortable?: false } | { sortable: true; sortByField?: RowField<T> }) & {
+    columns?: Array<TableColumn<T>>;
+    childrenCount?: number;
+    rowSpan?: number;
+  };
 
 export type Props<T extends TableRow> = {
   columns: Array<TableColumn<T>>;
@@ -112,8 +123,14 @@ export const Table = <T extends TableRow>({
   emptyRowsPlaceholder = defaultEmptyRowsPlaceholder,
   className,
 }: Props<T>): React.ReactElement => {
+  const columnsArr = handleColumns(columns, getMaxLevel(columns));
+  const headers = getLastChildrenArray(columns);
+
+  const [headerColumns] = columnsArr;
+
+  console.log('headers: ', headers);
   const [resizedColumnWidths, setResizedColumnWidths] = React.useState<ColumnWidth[]>(
-    columns.map((column) => column.width),
+    headers.map((column: TableColumn<T>) => column.width),
   );
   const [initialColumnWidths, setInitialColumnWidths] = React.useState<number[]>([]);
   const [sorting, setSorting] = React.useState<SortingState<T>>(null);
@@ -146,6 +163,10 @@ export const Table = <T extends TableRow>({
   const showVerticalCellShadow = tableScroll.left > 0;
   const showHorizontalCellShadow = tableScroll.top > 0;
   const isRowsClickable = activeRow && activeRow.onChange;
+
+  console.log('columnsArr', columnsArr);
+  // console.log('columnsArr.flat() ', columnsArr.flat());
+  // console.log('getLastChildrenArray(columnsArr)', getLastChildrenArray(columns));
 
   const updateColumnWidth = (idx: number, newWidth: number): void => {
     setResizedColumnWidths(updateAt(resizedColumnWidths, idx, newWidth));
@@ -245,34 +266,93 @@ export const Table = <T extends TableRow>({
     initialColumnWidths,
   });
 
-  const columnsWithMetaData = columns.map((column, columnIndex) => {
-    const resizedColumnWidth = resizedColumnWidths[columnIndex];
-    const initialColumnWidth = initialColumnWidths[columnIndex];
-    const columnWidth = resizedColumnWidth || initialColumnWidth;
-    const columnLeftOffset = getColumnLeftOffset({
-      columnIndex,
-      resizedColumnWidths,
-      initialColumnWidths,
-    });
-    const isResized = !!columnWidth && columnWidth !== initialColumnWidth;
-    const isSticky = stickyColumns > columnIndex;
-    const showResizer =
-      stickyColumns > columnIndex ||
-      stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
-    const isFilterActive = (selectedFilters[column.accessor] || []).length > 0;
+  // const columnsWithMetaData = columnsArr.flat().map((column: TableColumn<T>, columnIndex: number) => {
+  //   const resizedColumnWidth = resizedColumnWidths[columnIndex];
+  //   const initialColumnWidth = initialColumnWidths[columnIndex];
+  //   const columnWidth = resizedColumnWidth || initialColumnWidth;
+  //   const columnLeftOffset = getColumnLeftOffset({
+  //     columnIndex,
+  //     resizedColumnWidths,
+  //     initialColumnWidths,
+  //   });
+  //   const isResized = !!columnWidth && columnWidth !== initialColumnWidth;
+  //   const isSticky = stickyColumns > columnIndex;
+  //   const showResizer =
+  //     stickyColumns > columnIndex ||
+  //     stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
+  //   const isFilterActive = (selectedFilters[column.accessor] || []).length > 0;
+  //
+  //   return {
+  //     ...column,
+  //     filterable: filters && fieldFiltersPresent(filters, column.accessor),
+  //     isSortingActive: isSortedByColumn(column),
+  //     isFilterActive,
+  //     isResized,
+  //     isSticky,
+  //     showResizer,
+  //     columnWidth,
+  //     columnLeftOffset,
+  //   };
+  // });
 
-    return {
-      ...column,
-      filterable: filters && fieldFiltersPresent(filters, column.accessor),
-      isSortingActive: isSortedByColumn(column),
-      isFilterActive,
-      isResized,
-      isSticky,
-      showResizer,
-      columnWidth,
-      columnLeftOffset,
-    };
-  });
+  // const columnsWithMeta = headers.map((column: TableColumn<T>, columnIndex: number) => {
+  //   const resizedColumnWidth = resizedColumnWidths[columnIndex];
+  //   const initialColumnWidth = initialColumnWidths[columnIndex];
+  //   const columnWidth = resizedColumnWidth || initialColumnWidth;
+  //   const columnLeftOffset = getColumnLeftOffset({
+  //     columnIndex,
+  //     resizedColumnWidths,
+  //     initialColumnWidths,
+  //   });
+  //   const isResized = !!columnWidth && columnWidth !== initialColumnWidth;
+  //   const isSticky = stickyColumns > columnIndex;
+  //   const showResizer =
+  //     stickyColumns > columnIndex ||
+  //     stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
+  //   const isFilterActive = (selectedFilters[column.accessor] || []).length > 0;
+  //
+  //   return {
+  //     ...column,
+  //     filterable: filters && fieldFiltersPresent(filters, column.accessor),
+  //     isSortingActive: isSortedByColumn(column),
+  //     isFilterActive,
+  //     isResized,
+  //     isSticky,
+  //     showResizer,
+  //     columnWidth,
+  //     columnLeftOffset,
+  //   };
+  // });
+
+  const columnsWithMetaData = (columns: Array<TableColumn<T>>) =>
+    columns.map((column: TableColumn<T>, columnIndex: number) => {
+      const resizedColumnWidth = resizedColumnWidths[columnIndex];
+      const initialColumnWidth = initialColumnWidths[columnIndex];
+      const columnWidth = resizedColumnWidth || initialColumnWidth;
+      const columnLeftOffset = getColumnLeftOffset({
+        columnIndex,
+        resizedColumnWidths,
+        initialColumnWidths,
+      });
+      const isResized = !!columnWidth && columnWidth !== initialColumnWidth;
+      const isSticky = stickyColumns > columnIndex;
+      const showResizer =
+        stickyColumns > columnIndex ||
+        stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
+      const isFilterActive = (selectedFilters[column.accessor] || []).length > 0;
+
+      return {
+        ...column,
+        filterable: filters && fieldFiltersPresent(filters, column.accessor),
+        isSortingActive: isSortedByColumn(column),
+        isFilterActive,
+        isResized,
+        isSticky,
+        showResizer,
+        columnWidth,
+        columnLeftOffset,
+      };
+    });
 
   const tableData = sorting ? sortBy(rows, sorting.by, sorting.order) : rows;
   const filteredData =
@@ -313,7 +393,7 @@ export const Table = <T extends TableRow>({
         scrollHeight не подходило, так как в таком случае Resizer растягивал
         таблицу по высоте, поэтому от этого способа отказались.
       */}
-      {columnsWithMetaData.map((column, columnIdx) => (
+      {columnsWithMetaData(headers).map((column: TableColumn<T>, columnIdx: number) => (
         <TableCell
           type="resizer"
           key={columnIdx}
@@ -330,6 +410,7 @@ export const Table = <T extends TableRow>({
             <TableResizer
               height={tableHeight}
               isVisible={column.showResizer}
+              // isVisible={true}
               onResize={(delta): void => handleColumnResize(columnIdx, delta)}
               onDoubleClick={(): void =>
                 updateColumnWidth(columnIdx, initialColumnWidths[columnIdx])
@@ -339,50 +420,107 @@ export const Table = <T extends TableRow>({
         </TableCell>
       ))}
       <div className={cnTable('HeaderRow')}>
-        {columnsWithMetaData.map((column, columnIdx) => (
-          <TableCell
-            type="header"
-            key={column.accessor}
-            ref={columnIdx === 0 ? firstHeaderColumnRef : undefined}
-            style={{ left: getStickyLeftOffset(columnIdx) }}
-            isSticky={stickyHeader}
-            column={column}
-            className={cnTable('HeaderCell')}
-            showVerticalShadow={showVerticalCellShadow}
-          >
-            {column.title}
-            <div
-              className={cnTable('Buttons', {
-                isSortingActive: column.isSortingActive,
-                isFilterActive: column.isFilterActive,
-              })}
+        {columnsWithMetaData(columnsArr.flat()).map((column: TableColumn<T>, columnIdx: number) => {
+          const style: React.CSSProperties = {};
+          let groupTitle = false;
+          if (column.childrenCount > 1) {
+            style.gridColumnEnd = `span ${column.childrenCount}`;
+            groupTitle = true;
+          }
+          if (column.rowSpan) {
+            style.gridRowEnd = `span ${column.rowSpan}`;
+          }
+          return (
+            <TableCell
+              type="header"
+              key={column.accessor}
+              ref={columnIdx === 0 ? firstHeaderColumnRef : undefined}
+              style={{ ...style, left: getStickyLeftOffset(columnIdx) }}
+              isSticky={stickyHeader}
+              column={column}
+              className={cnTable('HeaderCell', { groupTitle })}
+              showVerticalShadow={showVerticalCellShadow}
             >
-              {column.sortable && (
-                <Button
-                  size="xs"
-                  iconSize="s"
-                  view="clear"
-                  onlyIcon
-                  onClick={(): void => handleSortClick(column)}
-                  iconLeft={getSortIcon(column)}
-                  className={cnTable('Icon', { type: 'sort' })}
-                />
-              )}
-              {filters && column.filterable && (
-                <TableFilterTooltip
-                  field={column.accessor}
-                  isOpened={visibleFilter === column.accessor}
-                  options={getOptionsForFilters(filters, column.accessor)}
-                  values={selectedFilters[column.accessor] || []}
-                  onChange={handleTooltipSave}
-                  onToggle={handleFilterTogglerClick(column.accessor)}
-                  className={cnTable('Icon', { type: 'filter' })}
-                />
-              )}
-            </div>
-          </TableCell>
-        ))}
+              {column.title}
+              <div
+                className={cnTable('Buttons', {
+                  isSortingActive: column.isSortingActive,
+                  isFilterActive: column.isFilterActive,
+                })}
+              >
+                {column.sortable && (
+                  <Button
+                    size="xs"
+                    iconSize="s"
+                    view="clear"
+                    onlyIcon
+                    onClick={(): void => handleSortClick(column)}
+                    iconLeft={getSortIcon(column)}
+                    className={cnTable('Icon', { type: 'sort' })}
+                  />
+                )}
+                {filters && column.filterable && (
+                  <TableFilterTooltip
+                    field={column.accessor}
+                    isOpened={visibleFilter === column.accessor}
+                    options={getOptionsForFilters(filters, column.accessor)}
+                    values={selectedFilters[column.accessor] || []}
+                    onChange={handleTooltipSave}
+                    onToggle={handleFilterTogglerClick(column.accessor)}
+                    className={cnTable('Icon', { type: 'filter' })}
+                  />
+                )}
+              </div>
+            </TableCell>
+          );
+        })}
       </div>
+
+      {/* <div className={cnTable('HeaderRow')}> */}
+      {/*  {columnsWithMetaData.map((column: TableColumn<T> &({ isSortingActive: boolean, isFilterActive: boolean, filterable: boolean }), columnIdx: number) => ( */}
+      {/*    <TableCell */}
+      {/*      type="header" */}
+      {/*      key={column.accessor} */}
+      {/*      ref={columnIdx === 0 ? firstHeaderColumnRef : undefined} */}
+      {/*      style={{ left: getStickyLeftOffset(columnIdx) }} */}
+      {/*      isSticky={stickyHeader} */}
+      {/*      column={column} */}
+      {/*      className={cnTable('HeaderCell')} */}
+      {/*      showVerticalShadow={showVerticalCellShadow} */}
+      {/*    > */}
+      {/*      {column.title} */}
+      {/*      <div */}
+      {/*        className={cnTable('Buttons', { */}
+      {/*          isSortingActive: column.isSortingActive, */}
+      {/*          isFilterActive: column.isFilterActive, */}
+      {/*        })} */}
+      {/*      > */}
+      {/*        {column.sortable && ( */}
+      {/*          <Button */}
+      {/*            size="xs" */}
+      {/*            iconSize="s" */}
+      {/*            view="clear" */}
+      {/*            onlyIcon */}
+      {/*            onClick={(): void => handleSortClick(column)} */}
+      {/*            iconLeft={getSortIcon(column)} */}
+      {/*            className={cnTable('Icon', { type: 'sort' })} */}
+      {/*          /> */}
+      {/*        )} */}
+      {/*        {filters && column.filterable && ( */}
+      {/*          <TableFilterTooltip */}
+      {/*            field={column.accessor} */}
+      {/*            isOpened={visibleFilter === column.accessor} */}
+      {/*            options={getOptionsForFilters(filters, column.accessor)} */}
+      {/*            values={selectedFilters[column.accessor] || []} */}
+      {/*            onChange={handleTooltipSave} */}
+      {/*            onToggle={handleFilterTogglerClick(column.accessor)} */}
+      {/*            className={cnTable('Icon', { type: 'filter' })} */}
+      {/*          /> */}
+      {/*        )} */}
+      {/*      </div> */}
+      {/*    </TableCell> */}
+      {/*  ))} */}
+      {/* </div> */}
       {/*
         Рендерим тень заголовка отдельно чтобы избежать возможных наложений
         теней для ячеек заголовка и ячеек прикрепленных слева.
@@ -404,7 +542,7 @@ export const Table = <T extends TableRow>({
           const nth = (rowIdx + 1) % 2 === 0 ? 'odd' : 'even';
           return (
             <div key={row.id} className={cnTable('CellsRow', { nth })}>
-              {columnsWithMetaData.map((column, columnIdx) => (
+              {columnsWithMetaData(headers).map((column: TableColumn<T>, columnIdx: number) => (
                 <TableCell
                   type="content"
                   key={column.accessor}

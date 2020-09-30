@@ -57,6 +57,13 @@
   }
 
   &-HeaderCell {
+    &_groupTitle {
+      .TableCell-Wrapper {
+        display: flex;
+        justify-content: center;
+      }
+    }
+
     &:not(:first-child)::after {
       content: '';
       position: absolute;

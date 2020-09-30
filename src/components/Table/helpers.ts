@@ -1,4 +1,4 @@
-import { ColumnWidth, RowField, SortingState, TableRow } from './Table';
+import { ColumnWidth, RowField, SortingState, TableColumn, TableRow } from './Table';
 
 export const getColumnsSize = (sizes: ColumnWidth[]): string => {
   return sizes.map((s) => (s ? `${s}px` : 'minmax(min-content, 1fr)')).join(' ');
@@ -39,4 +39,90 @@ export const getNewSorting = <T extends TableRow>(
   }
 
   return null;
+};
+
+export const getMaxLevel = <T extends TableRow>(columns: Array<TableColumn<T>>) => {
+  let count = 0;
+
+  const traverse = (cols: Array<TableColumn<T>>, level = 1) => {
+    if (level > count) count = level;
+    cols.forEach((item, i) => {
+      if (item.columns) {
+        traverse(item.columns, level + 1);
+      }
+    });
+  };
+
+  traverse(columns);
+
+  return count;
+};
+
+const getLastChildrenCount = <T extends TableRow>(columns: Array<TableColumn<T>>) => {
+  let count = 0;
+
+  const traverse = (cols: Array<TableColumn<T>>) => {
+    cols.forEach((item, i) => {
+      if (item.columns) {
+        traverse(item.columns);
+      } else {
+        count++;
+      }
+    });
+  };
+
+  traverse(columns);
+
+  return count;
+};
+
+export const getLastChildrenArray = <T extends TableRow>(columns: Array<TableColumn<T>>) => {
+  const array: any = [];
+
+  const traverse = (cols: Array<TableColumn<T>>) => {
+    cols.forEach((item, i) => {
+      if (item.columns) {
+        traverse(item.columns);
+      } else {
+        array.push(item);
+      }
+    });
+  };
+
+  traverse(columns);
+
+  return array;
+};
+
+export const handleColumns = <T extends TableRow>(
+  columns: Array<TableColumn<T>>,
+  maxLevel: number,
+  level = 0,
+  colArr: any[] = [],
+) => {
+  columns.forEach((item, i) => {
+    if (!colArr[level]) colArr[level] = [];
+    let curLevel = level;
+
+    if (!item.columns) {
+      let rowSpan = 1;
+      while (curLevel < maxLevel - 1) {
+        if (!colArr[curLevel]) colArr[curLevel] = [];
+        // colArr[curLevel].push({ title: '' });
+        curLevel++;
+        rowSpan++;
+      }
+      if (!colArr[level]) colArr[level] = [];
+      colArr[level].push({ ...item, childrenCount: 1, rowSpan });
+    } else {
+      colArr[curLevel].push({
+        ...item,
+        columns: null,
+        childrenCount: getLastChildrenCount(item.columns),
+      });
+      handleColumns(item.columns, maxLevel, curLevel + 1, colArr);
+    }
+  });
+
+  return colArr;
 };
