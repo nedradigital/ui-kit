@@ -64,7 +64,7 @@
       }
     }
 
-    &:not(:first-child)::after {
+    &:not(.Table-HeaderCell_isFirstColumn)::after {
       content: '';
       position: absolute;
       top: 0;

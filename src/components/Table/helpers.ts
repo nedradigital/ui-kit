@@ -16,6 +16,7 @@ export const getColumnLeftOffset = ({
   const selectedColumns = initialColumnWidths
     .slice(0, columnIndex)
     .map((size, index) => resizedColumnWidths[index] || size);
+  console.log(selectedColumns);
 
   return selectedColumns.reduce((acc, column) => acc + column, 0);
 };
@@ -99,10 +100,14 @@ export const handleColumns = <T extends TableRow>(
   maxLevel: number,
   level = 0,
   colArr: any[] = [],
+  tpi?: number,
 ) => {
   columns.forEach((item, i) => {
     if (!colArr[level]) colArr[level] = [];
     let curLevel = level;
+    const topLineIndex = tpi ?? i;
+    const prevItem = colArr[level][colArr[level].length - 1];
+    const gridIndex = prevItem ? (prevItem.gridIndex + ((prevItem.childrenCount || 1) - 1)) + 1 : 0;
 
     if (!item.columns) {
       let rowSpan = 1;
@@ -113,14 +118,19 @@ export const handleColumns = <T extends TableRow>(
         rowSpan++;
       }
       if (!colArr[level]) colArr[level] = [];
-      colArr[level].push({ ...item, childrenCount: 1, rowSpan });
+
+      colArr[level].push({ ...item, childrenCount: 1, topLineIndex, gridIndex, rowSpan, level });
     } else {
+
       colArr[curLevel].push({
         ...item,
         columns: null,
+        topLineIndex,
+        gridIndex,
+        level,
         childrenCount: getLastChildrenCount(item.columns),
       });
-      handleColumns(item.columns, maxLevel, curLevel + 1, colArr);
+      handleColumns(item.columns, maxLevel, curLevel + 1, colArr, topLineIndex);
     }
   });
 

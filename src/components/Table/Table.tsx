@@ -124,8 +124,17 @@ export const Table = <T extends TableRow>({
   className,
 }: Props<T>): React.ReactElement => {
   const columnsArr = handleColumns(columns, getMaxLevel(columns));
-  const headers = getLastChildrenArray(columns);
-
+  // const headers = getLastChildrenArray(columns);
+  const headers = columnsArr.flat()
+    .filter(({ childrenCount }) => (childrenCount === 1))
+    .sort((a, b) => {
+      if (a.topLineIndex !== b.topLineIndex) {
+        return a.topLineIndex > b.topLineIndex ? 1 : -1
+      } else {
+        return a.gridIndex > b.gridIndex ? 1 : -1
+      }
+    });
+  // console.log(headers1);
   const [headerColumns] = columnsArr;
 
   console.log('headers: ', headers);
@@ -159,7 +168,9 @@ export const Table = <T extends TableRow>({
     самой большой ячейки, то для расчета высоты заголовка достаточно получить
     высоту первой ячейки.
   */
-  const { height: tableHeaderHeight } = useComponentSize(firstHeaderColumnRef);
+  const { height: tableHeaderRowHeight } = useComponentSize(firstHeaderColumnRef);
+  const tableHeaderHeight = tableHeaderRowHeight * columnsArr.length;
+
   const showVerticalCellShadow = tableScroll.left > 0;
   const showHorizontalCellShadow = tableScroll.top > 0;
   const isRowsClickable = activeRow && activeRow.onChange;
@@ -178,7 +189,9 @@ export const Table = <T extends TableRow>({
       return;
     }
 
-    setInitialColumnWidths(columnsElements.map((el) => el.getBoundingClientRect().width));
+    setInitialColumnWidths(columnsElements.map((el) => {
+      return el.getBoundingClientRect().width
+    }));
   }, [tableWidth]);
 
   const isSortedByColumn = (column: TableColumn<T>): boolean =>
@@ -213,8 +226,8 @@ export const Table = <T extends TableRow>({
     }
   };
 
-  const getStickyLeftOffset = (columnIndex: number): number | undefined => {
-    if (columnIndex >= stickyColumns) {
+  const getStickyLeftOffset = (columnIndex: number, topLineIndex: number): number | undefined => {
+    if (topLineIndex >= stickyColumns) {
       return;
     }
 
@@ -324,8 +337,10 @@ export const Table = <T extends TableRow>({
   //   };
   // });
 
-  const columnsWithMetaData = (columns: Array<TableColumn<T>>) =>
-    columns.map((column: TableColumn<T>, columnIndex: number) => {
+  const columnsWithMetaData = (columns: Array<TableColumn<T>>) => {
+
+    return columns.map((column: TableColumn<T>, columnIndex: number) => {
+
       const resizedColumnWidth = resizedColumnWidths[columnIndex];
       const initialColumnWidth = initialColumnWidths[columnIndex];
       const columnWidth = resizedColumnWidth || initialColumnWidth;
@@ -335,7 +350,7 @@ export const Table = <T extends TableRow>({
         initialColumnWidths,
       });
       const isResized = !!columnWidth && columnWidth !== initialColumnWidth;
-      const isSticky = stickyColumns > columnIndex;
+      const isSticky = stickyColumns > column.topLineIndex;
       const showResizer =
         stickyColumns > columnIndex ||
         stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
@@ -353,6 +368,8 @@ export const Table = <T extends TableRow>({
         columnLeftOffset,
       };
     });
+  }
+
 
   const tableData = sorting ? sortBy(rows, sorting.by, sorting.order) : rows;
   const filteredData =
@@ -401,7 +418,7 @@ export const Table = <T extends TableRow>({
             columnsRefs.current[columnIdx] = ref;
           }}
           style={{
-            left: getStickyLeftOffset(columnIdx),
+            left: getStickyLeftOffset(columnIdx, columnIdx),
           }}
           column={column}
           showVerticalShadow={showVerticalCellShadow}
@@ -430,15 +447,25 @@ export const Table = <T extends TableRow>({
           if (column.rowSpan) {
             style.gridRowEnd = `span ${column.rowSpan}`;
           }
+          console.log('getStickyLeftOffset(column.gridIndex)', getStickyLeftOffset(column.gridIndex, column.topLineIndex))
+          console.log(column.gridIndex)
           return (
             <TableCell
               type="header"
               key={column.accessor}
               ref={columnIdx === 0 ? firstHeaderColumnRef : undefined}
-              style={{ ...style, left: getStickyLeftOffset(columnIdx) }}
+              style={{
+                ...style,
+                left: getStickyLeftOffset(column.gridIndex, column.topLineIndex),
+                top: stickyHeader && (tableHeaderRowHeight * column.level)
+              }}
               isSticky={stickyHeader}
               column={column}
-              className={cnTable('HeaderCell', { groupTitle })}
+              className={cnTable('HeaderCell', {
+                groupTitle,
+                isFirstColumn: column.gridIndex === 0,
+                isFirstRow: column.level === 0,
+              })}
               showVerticalShadow={showVerticalCellShadow}
             >
               {column.title}
@@ -542,28 +569,30 @@ export const Table = <T extends TableRow>({
           const nth = (rowIdx + 1) % 2 === 0 ? 'odd' : 'even';
           return (
             <div key={row.id} className={cnTable('CellsRow', { nth })}>
-              {columnsWithMetaData(headers).map((column: TableColumn<T>, columnIdx: number) => (
-                <TableCell
-                  type="content"
-                  key={column.accessor}
-                  style={{ left: getStickyLeftOffset(columnIdx) }}
-                  wrapperClassName={cnTable('ContentCell', {
-                    isActive: activeRow ? activeRow.id === row.id : false,
-                    isDarkned: activeRow
-                      ? activeRow.id !== undefined && activeRow.id !== row.id
-                      : false,
-                  })}
-                  onClick={handleSelectRow(row.id)}
-                  column={column}
-                  verticalAlign={verticalAlign}
-                  isClickable={!!isRowsClickable}
-                  showVerticalShadow={showVerticalCellShadow}
-                  isBorderTop={rowIdx > 0 && borderBetweenRows}
-                  isBorderLeft={columnIdx > 0 && borderBetweenColumns}
-                >
-                  {row[column.accessor]}
-                </TableCell>
-              ))}
+              {columnsWithMetaData(headers).map((column: TableColumn<T>, columnIdx: number) => {
+                return (
+                  <TableCell
+                    type="content"
+                    key={column.accessor}
+                    style={{ left: getStickyLeftOffset(columnIdx, column.topLineIndex) }}
+                    wrapperClassName={cnTable('ContentCell', {
+                      isActive: activeRow ? activeRow.id === row.id : false,
+                      isDarkned: activeRow
+                        ? activeRow.id !== undefined && activeRow.id !== row.id
+                        : false,
+                    })}
+                    onClick={handleSelectRow(row.id)}
+                    column={column}
+                    verticalAlign={verticalAlign}
+                    isClickable={!!isRowsClickable}
+                    showVerticalShadow={showVerticalCellShadow}
+                    isBorderTop={rowIdx > 0 && borderBetweenRows}
+                    isBorderLeft={columnIdx > 0 && borderBetweenColumns}
+                  >
+                    {row[column.accessor]}
+                  </TableCell>
+                )
+              })}
             </div>
           );
         })
