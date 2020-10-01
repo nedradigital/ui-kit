@@ -29,10 +29,10 @@ import {
 import {
   getColumnLeftOffset,
   getColumnsSize,
-  getLastChildrenArray,
   getMaxLevel,
   getNewSorting,
-  handleColumns,
+  Position,
+  transformColumns,
 } from './helpers';
 
 const cnTable = cn('Table');
@@ -72,8 +72,7 @@ export type TableColumn<T extends TableRow> = {
   width?: ColumnWidth;
 } & ({ sortable?: false } | { sortable: true; sortByField?: RowField<T> }) & {
     columns?: Array<TableColumn<T>>;
-    childrenCount?: number;
-    rowSpan?: number;
+    position: Position;
   };
 
 export type Props<T extends TableRow> = {
@@ -123,23 +122,22 @@ export const Table = <T extends TableRow>({
   emptyRowsPlaceholder = defaultEmptyRowsPlaceholder,
   className,
 }: Props<T>): React.ReactElement => {
-  const columnsArr = handleColumns(columns, getMaxLevel(columns));
-  // const headers = getLastChildrenArray(columns);
-  const headers = columnsArr.flat()
-    .filter(({ childrenCount }) => (childrenCount === 1))
+  const columnsArr = transformColumns(columns, getMaxLevel(columns));
+  const stickyColumnsGrid =
+    columnsArr[0][stickyColumns - 1]?.position.gridIndex +
+    columnsArr[0][stickyColumns - 1]?.position.colSpan;
+  const lowHeaders = columnsArr
+    .flat()
+    .filter(({ position: { colSpan } }) => colSpan === 1)
     .sort((a, b) => {
-      if (a.topLineIndex !== b.topLineIndex) {
-        return a.topLineIndex > b.topLineIndex ? 1 : -1
-      } else {
-        return a.gridIndex > b.gridIndex ? 1 : -1
+      if (a.position.highLevelIndex !== b.position.highLevelIndex) {
+        return a.position.highLevelIndex > b.position.highLevelIndex ? 1 : -1;
       }
+      return a.position.gridIndex > b.position.gridIndex ? 1 : -1;
     });
-  // console.log(headers1);
-  const [headerColumns] = columnsArr;
 
-  console.log('headers: ', headers);
   const [resizedColumnWidths, setResizedColumnWidths] = React.useState<ColumnWidth[]>(
-    headers.map((column: TableColumn<T>) => column.width),
+    lowHeaders.map((column: TableColumn<T>) => column.width),
   );
   const [initialColumnWidths, setInitialColumnWidths] = React.useState<number[]>([]);
   const [sorting, setSorting] = React.useState<SortingState<T>>(null);
@@ -175,10 +173,6 @@ export const Table = <T extends TableRow>({
   const showHorizontalCellShadow = tableScroll.top > 0;
   const isRowsClickable = activeRow && activeRow.onChange;
 
-  console.log('columnsArr', columnsArr);
-  // console.log('columnsArr.flat() ', columnsArr.flat());
-  // console.log('getLastChildrenArray(columnsArr)', getLastChildrenArray(columns));
-
   const updateColumnWidth = (idx: number, newWidth: number): void => {
     setResizedColumnWidths(updateAt(resizedColumnWidths, idx, newWidth));
   };
@@ -189,9 +183,11 @@ export const Table = <T extends TableRow>({
       return;
     }
 
-    setInitialColumnWidths(columnsElements.map((el) => {
-      return el.getBoundingClientRect().width
-    }));
+    setInitialColumnWidths(
+      columnsElements.map((el) => {
+        return el.getBoundingClientRect().width;
+      }),
+    );
   }, [tableWidth]);
 
   const isSortedByColumn = (column: TableColumn<T>): boolean =>
@@ -226,8 +222,8 @@ export const Table = <T extends TableRow>({
     }
   };
 
-  const getStickyLeftOffset = (columnIndex: number, topLineIndex: number): number | undefined => {
-    if (topLineIndex >= stickyColumns) {
+  const getStickyLeftOffset = (columnIndex: number, highLevelIndex: number): number | undefined => {
+    if (highLevelIndex >= stickyColumns) {
       return;
     }
 
@@ -279,68 +275,8 @@ export const Table = <T extends TableRow>({
     initialColumnWidths,
   });
 
-  // const columnsWithMetaData = columnsArr.flat().map((column: TableColumn<T>, columnIndex: number) => {
-  //   const resizedColumnWidth = resizedColumnWidths[columnIndex];
-  //   const initialColumnWidth = initialColumnWidths[columnIndex];
-  //   const columnWidth = resizedColumnWidth || initialColumnWidth;
-  //   const columnLeftOffset = getColumnLeftOffset({
-  //     columnIndex,
-  //     resizedColumnWidths,
-  //     initialColumnWidths,
-  //   });
-  //   const isResized = !!columnWidth && columnWidth !== initialColumnWidth;
-  //   const isSticky = stickyColumns > columnIndex;
-  //   const showResizer =
-  //     stickyColumns > columnIndex ||
-  //     stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
-  //   const isFilterActive = (selectedFilters[column.accessor] || []).length > 0;
-  //
-  //   return {
-  //     ...column,
-  //     filterable: filters && fieldFiltersPresent(filters, column.accessor),
-  //     isSortingActive: isSortedByColumn(column),
-  //     isFilterActive,
-  //     isResized,
-  //     isSticky,
-  //     showResizer,
-  //     columnWidth,
-  //     columnLeftOffset,
-  //   };
-  // });
-
-  // const columnsWithMeta = headers.map((column: TableColumn<T>, columnIndex: number) => {
-  //   const resizedColumnWidth = resizedColumnWidths[columnIndex];
-  //   const initialColumnWidth = initialColumnWidths[columnIndex];
-  //   const columnWidth = resizedColumnWidth || initialColumnWidth;
-  //   const columnLeftOffset = getColumnLeftOffset({
-  //     columnIndex,
-  //     resizedColumnWidths,
-  //     initialColumnWidths,
-  //   });
-  //   const isResized = !!columnWidth && columnWidth !== initialColumnWidth;
-  //   const isSticky = stickyColumns > columnIndex;
-  //   const showResizer =
-  //     stickyColumns > columnIndex ||
-  //     stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
-  //   const isFilterActive = (selectedFilters[column.accessor] || []).length > 0;
-  //
-  //   return {
-  //     ...column,
-  //     filterable: filters && fieldFiltersPresent(filters, column.accessor),
-  //     isSortingActive: isSortedByColumn(column),
-  //     isFilterActive,
-  //     isResized,
-  //     isSticky,
-  //     showResizer,
-  //     columnWidth,
-  //     columnLeftOffset,
-  //   };
-  // });
-
   const columnsWithMetaData = (columns: Array<TableColumn<T>>) => {
-
     return columns.map((column: TableColumn<T>, columnIndex: number) => {
-
       const resizedColumnWidth = resizedColumnWidths[columnIndex];
       const initialColumnWidth = initialColumnWidths[columnIndex];
       const columnWidth = resizedColumnWidth || initialColumnWidth;
@@ -350,7 +286,7 @@ export const Table = <T extends TableRow>({
         initialColumnWidths,
       });
       const isResized = !!columnWidth && columnWidth !== initialColumnWidth;
-      const isSticky = stickyColumns > column.topLineIndex;
+      const isSticky = stickyColumns > column.position?.highLevelIndex;
       const showResizer =
         stickyColumns > columnIndex ||
         stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
@@ -368,8 +304,7 @@ export const Table = <T extends TableRow>({
         columnLeftOffset,
       };
     });
-  }
-
+  };
 
   const tableData = sorting ? sortBy(rows, sorting.by, sorting.order) : rows;
   const filteredData =
@@ -410,144 +345,115 @@ export const Table = <T extends TableRow>({
         scrollHeight не подходило, так как в таком случае Resizer растягивал
         таблицу по высоте, поэтому от этого способа отказались.
       */}
-      {columnsWithMetaData(headers).map((column: TableColumn<T>, columnIdx: number) => (
-        <TableCell
-          type="resizer"
-          key={columnIdx}
-          ref={(ref: HTMLDivElement | null): void => {
-            columnsRefs.current[columnIdx] = ref;
-          }}
-          style={{
-            left: getStickyLeftOffset(columnIdx, columnIdx),
-          }}
-          column={column}
-          showVerticalShadow={showVerticalCellShadow}
-        >
-          {isResizable && (
-            <TableResizer
-              height={tableHeight}
-              isVisible={column.showResizer}
-              // isVisible={true}
-              onResize={(delta): void => handleColumnResize(columnIdx, delta)}
-              onDoubleClick={(): void =>
-                updateColumnWidth(columnIdx, initialColumnWidths[columnIdx])
-              }
-            />
-          )}
-        </TableCell>
-      ))}
+      {columnsWithMetaData(lowHeaders).map(
+        (column: TableColumn<T> & { showResizer: boolean }, columnIdx: number) => (
+          <TableCell
+            type="resizer"
+            key={columnIdx}
+            ref={(ref: HTMLDivElement | null): void => {
+              columnsRefs.current[columnIdx] = ref;
+            }}
+            style={{
+              left: getStickyLeftOffset(columnIdx, columnIdx),
+            }}
+            column={column}
+            showVerticalShadow={showVerticalCellShadow}
+          >
+            {isResizable && (
+              <TableResizer
+                height={tableHeight}
+                isVisible={column.showResizer}
+                onResize={(delta): void => handleColumnResize(columnIdx, delta)}
+                onDoubleClick={(): void =>
+                  updateColumnWidth(columnIdx, initialColumnWidths[columnIdx])
+                }
+              />
+            )}
+          </TableCell>
+        ),
+      )}
       <div className={cnTable('HeaderRow')}>
-        {columnsWithMetaData(columnsArr.flat()).map((column: TableColumn<T>, columnIdx: number) => {
-          const style: React.CSSProperties = {};
-          let groupTitle = false;
-          if (column.childrenCount > 1) {
-            style.gridColumnEnd = `span ${column.childrenCount}`;
-            groupTitle = true;
-          }
-          if (column.rowSpan) {
-            style.gridRowEnd = `span ${column.rowSpan}`;
-          }
-          console.log('getStickyLeftOffset(column.gridIndex)', getStickyLeftOffset(column.gridIndex, column.topLineIndex))
-          console.log(column.gridIndex)
-          return (
-            <TableCell
-              type="header"
-              key={column.accessor}
-              ref={columnIdx === 0 ? firstHeaderColumnRef : undefined}
-              style={{
-                ...style,
-                left: getStickyLeftOffset(column.gridIndex, column.topLineIndex),
-                top: stickyHeader && (tableHeaderRowHeight * column.level)
-              }}
-              isSticky={stickyHeader}
-              column={column}
-              className={cnTable('HeaderCell', {
-                groupTitle,
-                isFirstColumn: column.gridIndex === 0,
-                isFirstRow: column.level === 0,
-              })}
-              showVerticalShadow={showVerticalCellShadow}
-            >
-              {column.title}
-              <div
-                className={cnTable('Buttons', {
-                  isSortingActive: column.isSortingActive,
-                  isFilterActive: column.isFilterActive,
+        {columnsWithMetaData(columnsArr.flat()).map(
+          (
+            column: TableColumn<T> & {
+              isSortingActive: boolean;
+              isFilterActive: boolean;
+              filterable?: boolean;
+            },
+            columnIdx: number,
+          ) => {
+            const style: React.CSSProperties = {};
+            if (column.position.colSpan > 1) {
+              style.gridColumnEnd = `span ${column.position.colSpan}`;
+            }
+            if (column.position.rowSpan) {
+              style.gridRowEnd = `span ${column.position.rowSpan}`;
+            }
+            if (stickyHeader) {
+              style.top = tableHeaderRowHeight * column.position.level;
+            }
+            return (
+              <TableCell
+                type="header"
+                key={columnIdx}
+                ref={columnIdx === 0 ? firstHeaderColumnRef : undefined}
+                style={{
+                  ...style,
+                  left: getStickyLeftOffset(
+                    column.position.gridIndex,
+                    column.position.highLevelIndex,
+                  ),
+                }}
+                isSticky={stickyHeader}
+                column={column}
+                className={cnTable('HeaderCell', {
+                  groupTitle: column.position.colSpan > 1,
+                  isFirstColumn: column.position.gridIndex === 0,
+                  isFirstRow: column.position.level === 0,
+                  isLastInColumn:
+                    column.position.highLevelIndex !==
+                    columnsWithMetaData(columnsArr.flat())[columnIdx + 1]?.position.highLevelIndex,
                 })}
+                showVerticalShadow={
+                  showVerticalCellShadow &&
+                  column?.position.gridIndex + column?.position.colSpan === stickyColumnsGrid
+                }
               >
-                {column.sortable && (
-                  <Button
-                    size="xs"
-                    iconSize="s"
-                    view="clear"
-                    onlyIcon
-                    onClick={(): void => handleSortClick(column)}
-                    iconLeft={getSortIcon(column)}
-                    className={cnTable('Icon', { type: 'sort' })}
-                  />
-                )}
-                {filters && column.filterable && (
-                  <TableFilterTooltip
-                    field={column.accessor}
-                    isOpened={visibleFilter === column.accessor}
-                    options={getOptionsForFilters(filters, column.accessor)}
-                    values={selectedFilters[column.accessor] || []}
-                    onChange={handleTooltipSave}
-                    onToggle={handleFilterTogglerClick(column.accessor)}
-                    className={cnTable('Icon', { type: 'filter' })}
-                  />
-                )}
-              </div>
-            </TableCell>
-          );
-        })}
+                {column.title}
+                <div
+                  className={cnTable('Buttons', {
+                    isSortingActive: column.isSortingActive,
+                    isFilterActive: column.isFilterActive,
+                  })}
+                >
+                  {column.sortable && (
+                    <Button
+                      size="xs"
+                      iconSize="s"
+                      view="clear"
+                      onlyIcon
+                      onClick={(): void => handleSortClick(column)}
+                      iconLeft={getSortIcon(column)}
+                      className={cnTable('Icon', { type: 'sort' })}
+                    />
+                  )}
+                  {filters && column.filterable && (
+                    <TableFilterTooltip
+                      field={column.accessor}
+                      isOpened={visibleFilter === column.accessor}
+                      options={getOptionsForFilters(filters, column.accessor)}
+                      values={selectedFilters[column.accessor] || []}
+                      onChange={handleTooltipSave}
+                      onToggle={handleFilterTogglerClick(column.accessor)}
+                      className={cnTable('Icon', { type: 'filter' })}
+                    />
+                  )}
+                </div>
+              </TableCell>
+            );
+          },
+        )}
       </div>
-
-      {/* <div className={cnTable('HeaderRow')}> */}
-      {/*  {columnsWithMetaData.map((column: TableColumn<T> &({ isSortingActive: boolean, isFilterActive: boolean, filterable: boolean }), columnIdx: number) => ( */}
-      {/*    <TableCell */}
-      {/*      type="header" */}
-      {/*      key={column.accessor} */}
-      {/*      ref={columnIdx === 0 ? firstHeaderColumnRef : undefined} */}
-      {/*      style={{ left: getStickyLeftOffset(columnIdx) }} */}
-      {/*      isSticky={stickyHeader} */}
-      {/*      column={column} */}
-      {/*      className={cnTable('HeaderCell')} */}
-      {/*      showVerticalShadow={showVerticalCellShadow} */}
-      {/*    > */}
-      {/*      {column.title} */}
-      {/*      <div */}
-      {/*        className={cnTable('Buttons', { */}
-      {/*          isSortingActive: column.isSortingActive, */}
-      {/*          isFilterActive: column.isFilterActive, */}
-      {/*        })} */}
-      {/*      > */}
-      {/*        {column.sortable && ( */}
-      {/*          <Button */}
-      {/*            size="xs" */}
-      {/*            iconSize="s" */}
-      {/*            view="clear" */}
-      {/*            onlyIcon */}
-      {/*            onClick={(): void => handleSortClick(column)} */}
-      {/*            iconLeft={getSortIcon(column)} */}
-      {/*            className={cnTable('Icon', { type: 'sort' })} */}
-      {/*          /> */}
-      {/*        )} */}
-      {/*        {filters && column.filterable && ( */}
-      {/*          <TableFilterTooltip */}
-      {/*            field={column.accessor} */}
-      {/*            isOpened={visibleFilter === column.accessor} */}
-      {/*            options={getOptionsForFilters(filters, column.accessor)} */}
-      {/*            values={selectedFilters[column.accessor] || []} */}
-      {/*            onChange={handleTooltipSave} */}
-      {/*            onToggle={handleFilterTogglerClick(column.accessor)} */}
-      {/*            className={cnTable('Icon', { type: 'filter' })} */}
-      {/*          /> */}
-      {/*        )} */}
-      {/*      </div> */}
-      {/*    </TableCell> */}
-      {/*  ))} */}
-      {/* </div> */}
       {/*
         Рендерим тень заголовка отдельно чтобы избежать возможных наложений
         теней для ячеек заголовка и ячеек прикрепленных слева.
@@ -558,7 +464,7 @@ export const Table = <T extends TableRow>({
       {filters && isSelectedFiltersPresent(selectedFilters) && (
         <div className={cnTable('RowWithoutCells')}>
           <TableSelectedOptionsList
-            values={getSelectedFiltersList({ filters, selectedFilters, columns })}
+            values={getSelectedFiltersList({ filters, selectedFilters, columns: lowHeaders })}
             onRemove={removeSelectedFilter(filters)}
             onReset={resetSelectedFilters}
           />
@@ -569,12 +475,12 @@ export const Table = <T extends TableRow>({
           const nth = (rowIdx + 1) % 2 === 0 ? 'odd' : 'even';
           return (
             <div key={row.id} className={cnTable('CellsRow', { nth })}>
-              {columnsWithMetaData(headers).map((column: TableColumn<T>, columnIdx: number) => {
+              {columnsWithMetaData(lowHeaders).map((column: TableColumn<T>, columnIdx: number) => {
                 return (
                   <TableCell
                     type="content"
                     key={column.accessor}
-                    style={{ left: getStickyLeftOffset(columnIdx, column.topLineIndex) }}
+                    style={{ left: getStickyLeftOffset(columnIdx, column.position.highLevelIndex) }}
                     wrapperClassName={cnTable('ContentCell', {
                       isActive: activeRow ? activeRow.id === row.id : false,
                       isDarkned: activeRow
@@ -585,13 +491,16 @@ export const Table = <T extends TableRow>({
                     column={column}
                     verticalAlign={verticalAlign}
                     isClickable={!!isRowsClickable}
-                    showVerticalShadow={showVerticalCellShadow}
+                    showVerticalShadow={
+                      showVerticalCellShadow &&
+                      column?.position.gridIndex + column?.position.colSpan === stickyColumnsGrid
+                    }
                     isBorderTop={rowIdx > 0 && borderBetweenRows}
                     isBorderLeft={columnIdx > 0 && borderBetweenColumns}
                   >
                     {row[column.accessor]}
                   </TableCell>
-                )
+                );
               })}
             </div>
           );

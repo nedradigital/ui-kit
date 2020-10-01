@@ -1,5 +1,13 @@
 import { ColumnWidth, RowField, SortingState, TableColumn, TableRow } from './Table';
 
+export type Position = {
+  colSpan: number;
+  rowSpan?: number;
+  level: number;
+  gridIndex: number;
+  highLevelIndex: number;
+};
+
 export const getColumnsSize = (sizes: ColumnWidth[]): string => {
   return sizes.map((s) => (s ? `${s}px` : 'minmax(min-content, 1fr)')).join(' ');
 };
@@ -16,7 +24,6 @@ export const getColumnLeftOffset = ({
   const selectedColumns = initialColumnWidths
     .slice(0, columnIndex)
     .map((size, index) => resizedColumnWidths[index] || size);
-  console.log(selectedColumns);
 
   return selectedColumns.reduce((acc, column) => acc + column, 0);
 };
@@ -47,7 +54,7 @@ export const getMaxLevel = <T extends TableRow>(columns: Array<TableColumn<T>>) 
 
   const traverse = (cols: Array<TableColumn<T>>, level = 1) => {
     if (level > count) count = level;
-    cols.forEach((item, i) => {
+    cols.forEach((item: TableColumn<T>) => {
       if (item.columns) {
         traverse(item.columns, level + 1);
       }
@@ -63,7 +70,7 @@ const getLastChildrenCount = <T extends TableRow>(columns: Array<TableColumn<T>>
   let count = 0;
 
   const traverse = (cols: Array<TableColumn<T>>) => {
-    cols.forEach((item, i) => {
+    cols.forEach((item: TableColumn<T>) => {
       if (item.columns) {
         traverse(item.columns);
       } else {
@@ -78,10 +85,10 @@ const getLastChildrenCount = <T extends TableRow>(columns: Array<TableColumn<T>>
 };
 
 export const getLastChildrenArray = <T extends TableRow>(columns: Array<TableColumn<T>>) => {
-  const array: any = [];
+  const array: Array<TableColumn<T>> = [];
 
   const traverse = (cols: Array<TableColumn<T>>) => {
-    cols.forEach((item, i) => {
+    cols.forEach((item: TableColumn<T>) => {
       if (item.columns) {
         traverse(item.columns);
       } else {
@@ -95,42 +102,52 @@ export const getLastChildrenArray = <T extends TableRow>(columns: Array<TableCol
   return array;
 };
 
-export const handleColumns = <T extends TableRow>(
+export const transformColumns = <T extends TableRow>(
   columns: Array<TableColumn<T>>,
   maxLevel: number,
   level = 0,
   colArr: any[] = [],
   tpi?: number,
 ) => {
-  columns.forEach((item, i) => {
+  columns.forEach((item: TableColumn<T>, i: number) => {
     if (!colArr[level]) colArr[level] = [];
     let curLevel = level;
-    const topLineIndex = tpi ?? i;
+    const highLevelIndex = tpi ?? i;
     const prevItem = colArr[level][colArr[level].length - 1];
-    const gridIndex = prevItem ? (prevItem.gridIndex + ((prevItem.childrenCount || 1) - 1)) + 1 : 0;
+    const gridIndex = prevItem
+      ? prevItem.position.gridIndex + ((prevItem.position.colSpan || 1) - 1) + 1
+      : 0;
 
     if (!item.columns) {
       let rowSpan = 1;
       while (curLevel < maxLevel - 1) {
         if (!colArr[curLevel]) colArr[curLevel] = [];
-        // colArr[curLevel].push({ title: '' });
         curLevel++;
         rowSpan++;
       }
       if (!colArr[level]) colArr[level] = [];
 
-      colArr[level].push({ ...item, childrenCount: 1, topLineIndex, gridIndex, rowSpan, level });
+      colArr[level].push({
+        ...item,
+        position: {
+          colSpan: 1,
+          highLevelIndex,
+          gridIndex,
+          rowSpan,
+          level,
+        },
+      });
     } else {
-
       colArr[curLevel].push({
         ...item,
-        columns: null,
-        topLineIndex,
-        gridIndex,
-        level,
-        childrenCount: getLastChildrenCount(item.columns),
+        position: {
+          colSpan: getLastChildrenCount(item.columns),
+          highLevelIndex,
+          gridIndex,
+          level,
+        },
       });
-      handleColumns(item.columns, maxLevel, curLevel + 1, colArr, topLineIndex);
+      transformColumns(item.columns, maxLevel, curLevel + 1, colArr, highLevelIndex);
     }
   });
 
