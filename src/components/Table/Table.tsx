@@ -145,7 +145,7 @@ export const Table = <T extends TableRow>({
   const [tableScroll, setTableScroll] = React.useState({ top: 0, left: 0 });
   const tableRef = React.useRef<HTMLDivElement>(null);
   const columnsRefs = React.useRef<Record<number, HTMLDivElement | null>>({});
-  const firstHeaderColumnRef = React.useRef<HTMLDivElement>(null);
+  const headerRowsRefs = React.useRef<Record<number, HTMLDivElement | null>>({});
   const {
     selectedFilters,
     updateSelectedFilters,
@@ -161,13 +161,20 @@ export const Table = <T extends TableRow>({
   useComponentSize(tableRef);
   const tableHeight = tableRef.current?.clientHeight || 0;
   const tableWidth = tableRef.current?.clientWidth || 0;
-  /*
-    Так как настройки сетки адаптируют высоту всех ячеек строки по высоте
-    самой большой ячейки, то для расчета высоты заголовка достаточно получить
-    высоту первой ячейки.
-  */
-  const { height: tableHeaderRowHeight } = useComponentSize(firstHeaderColumnRef);
-  const tableHeaderHeight = tableHeaderRowHeight * columnsArr.length;
+
+  const headerColumnsHeights: Array<number> = Object.values(headerRowsRefs.current)
+    .filter(isNotNil)
+    .map((row) => row.getBoundingClientRect().height);
+  const flattenedColumnsArr = columnsArr
+    .flat()
+    .map((column, index) => ({ ...column, height: headerColumnsHeights[index] }));
+  const headerRowsHeights = columnsArr.map((arr, index) => {
+    return Math.min.apply(
+      null,
+      flattenedColumnsArr.filter((col) => col.position.level === index).map((item) => item.height),
+    );
+  });
+  const tableHeaderHeight = headerRowsHeights.reduce((a, b) => a + b, 0);
 
   const showVerticalCellShadow = tableScroll.left > 0;
   const showHorizontalCellShadow = tableScroll.top > 0;
@@ -373,7 +380,7 @@ export const Table = <T extends TableRow>({
         ),
       )}
       <div className={cnTable('HeaderRow')}>
-        {columnsWithMetaData(columnsArr.flat()).map(
+        {columnsWithMetaData(flattenedColumnsArr).map(
           (
             column: TableColumn<T> & {
               isSortingActive: boolean;
@@ -390,13 +397,17 @@ export const Table = <T extends TableRow>({
               style.gridRowEnd = `span ${column.position.rowSpan}`;
             }
             if (stickyHeader) {
-              style.top = tableHeaderRowHeight * column.position.level;
+              style.top = headerRowsHeights
+                .slice(0, column.position.level)
+                .reduce((a, b) => a + b, 0);
             }
             return (
               <TableCell
                 type="header"
                 key={columnIdx}
-                ref={columnIdx === 0 ? firstHeaderColumnRef : undefined}
+                ref={(ref: HTMLDivElement | null): void => {
+                  headerRowsRefs.current[columnIdx] = ref;
+                }}
                 style={{
                   ...style,
                   left: getStickyLeftOffset(

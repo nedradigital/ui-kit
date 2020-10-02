@@ -110,6 +110,7 @@ export const transformColumns = <T extends TableRow>(
   tpi?: number,
 ) => {
   columns.forEach((item: TableColumn<T>, i: number) => {
+    /* eslint-disable-next-line no-param-reassign */
     if (!colArr[level]) colArr[level] = [];
     let curLevel = level;
     const highLevelIndex = tpi ?? i;
@@ -121,10 +122,12 @@ export const transformColumns = <T extends TableRow>(
     if (!item.columns) {
       let rowSpan = 1;
       while (curLevel < maxLevel - 1) {
+        /* eslint-disable-next-line no-param-reassign */
         if (!colArr[curLevel]) colArr[curLevel] = [];
         curLevel++;
         rowSpan++;
       }
+      /* eslint-disable-next-line no-param-reassign */
       if (!colArr[level]) colArr[level] = [];
 
       colArr[level].push({
