@@ -72,7 +72,7 @@ export type TableColumn<T extends TableRow> = {
   width?: ColumnWidth;
 } & ({ sortable?: false } | { sortable: true; sortByField?: RowField<T> }) & {
     columns?: Array<TableColumn<T>>;
-    position: Position;
+    position?: Position;
   };
 
 export type Props<T extends TableRow> = {
@@ -125,13 +125,25 @@ export const Table = <T extends TableRow>({
   const columnsArr = transformColumns(columns, getMaxLevel(columns));
   const stickyColumnsGrid =
     columnsArr[0][stickyColumns - 1]?.position.gridIndex +
-    columnsArr[0][stickyColumns - 1]?.position.colSpan;
-  const lowHeaders = columnsArr
+    (columnsArr[0][stickyColumns - 1]?.position.colSpan || 1);
+  const headerRowsRefs = React.useRef<Record<number, HTMLDivElement | null>>({});
+  const headerColumnsHeights: Array<number> = Object.values(headerRowsRefs.current)
+    .filter(isNotNil)
+    .map((row) => row.getBoundingClientRect().height);
+  const flattenedColumnsArr = columnsArr
     .flat()
-    .filter(({ position: { colSpan } }) => colSpan === 1)
+    .map((column, index) => ({ ...column, height: headerColumnsHeights[index] }));
+  const headerRowsHeights = columnsArr.map((arr, index) => {
+    return Math.min.apply(
+      null,
+      flattenedColumnsArr.filter((col) => col.position.level === index).map((item) => item.height),
+    );
+  });
+  const lowHeaders = flattenedColumnsArr
+    .filter(({ position: { colSpan } }) => !colSpan)
     .sort((a, b) => {
-      if (a.position.highLevelIndex !== b.position.highLevelIndex) {
-        return a.position.highLevelIndex > b.position.highLevelIndex ? 1 : -1;
+      if (a.position.topHeaderGridIndex !== b.position.topHeaderGridIndex) {
+        return a.position.topHeaderGridIndex > b.position.topHeaderGridIndex ? 1 : -1;
       }
       return a.position.gridIndex > b.position.gridIndex ? 1 : -1;
     });
@@ -145,7 +157,6 @@ export const Table = <T extends TableRow>({
   const [tableScroll, setTableScroll] = React.useState({ top: 0, left: 0 });
   const tableRef = React.useRef<HTMLDivElement>(null);
   const columnsRefs = React.useRef<Record<number, HTMLDivElement | null>>({});
-  const headerRowsRefs = React.useRef<Record<number, HTMLDivElement | null>>({});
   const {
     selectedFilters,
     updateSelectedFilters,
@@ -162,18 +173,6 @@ export const Table = <T extends TableRow>({
   const tableHeight = tableRef.current?.clientHeight || 0;
   const tableWidth = tableRef.current?.clientWidth || 0;
 
-  const headerColumnsHeights: Array<number> = Object.values(headerRowsRefs.current)
-    .filter(isNotNil)
-    .map((row) => row.getBoundingClientRect().height);
-  const flattenedColumnsArr = columnsArr
-    .flat()
-    .map((column, index) => ({ ...column, height: headerColumnsHeights[index] }));
-  const headerRowsHeights = columnsArr.map((arr, index) => {
-    return Math.min.apply(
-      null,
-      flattenedColumnsArr.filter((col) => col.position.level === index).map((item) => item.height),
-    );
-  });
   const tableHeaderHeight = headerRowsHeights.reduce((a, b) => a + b, 0);
 
   const showVerticalCellShadow = tableScroll.left > 0;
@@ -229,8 +228,11 @@ export const Table = <T extends TableRow>({
     }
   };
 
-  const getStickyLeftOffset = (columnIndex: number, highLevelIndex: number): number | undefined => {
-    if (highLevelIndex >= stickyColumns) {
+  const getStickyLeftOffset = (
+    columnIndex: number,
+    topHeaderGridIndex: number,
+  ): number | undefined => {
+    if (topHeaderGridIndex >= stickyColumns) {
       return;
     }
 
@@ -293,7 +295,7 @@ export const Table = <T extends TableRow>({
         initialColumnWidths,
       });
       const isResized = !!columnWidth && columnWidth !== initialColumnWidth;
-      const isSticky = stickyColumns > column.position?.highLevelIndex;
+      const isSticky = stickyColumns > column.position!.topHeaderGridIndex;
       const showResizer =
         stickyColumns > columnIndex ||
         stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
@@ -390,15 +392,15 @@ export const Table = <T extends TableRow>({
             columnIdx: number,
           ) => {
             const style: React.CSSProperties = {};
-            if (column.position.colSpan > 1) {
-              style.gridColumnEnd = `span ${column.position.colSpan}`;
+            if (column.position!.colSpan) {
+              style.gridColumnEnd = `span ${column.position!.colSpan}`;
             }
-            if (column.position.rowSpan) {
-              style.gridRowEnd = `span ${column.position.rowSpan}`;
+            if (column.position!.rowSpan) {
+              style.gridRowEnd = `span ${column.position!.rowSpan}`;
             }
             if (stickyHeader) {
               style.top = headerRowsHeights
-                .slice(0, column.position.level)
+                .slice(0, column.position!.level)
                 .reduce((a, b) => a + b, 0);
             }
             return (
@@ -411,23 +413,24 @@ export const Table = <T extends TableRow>({
                 style={{
                   ...style,
                   left: getStickyLeftOffset(
-                    column.position.gridIndex,
-                    column.position.highLevelIndex,
+                    column.position!.gridIndex,
+                    column.position!.topHeaderGridIndex,
                   ),
                 }}
                 isSticky={stickyHeader}
                 column={column}
                 className={cnTable('HeaderCell', {
-                  groupTitle: column.position.colSpan > 1,
-                  isFirstColumn: column.position.gridIndex === 0,
-                  isFirstRow: column.position.level === 0,
+                  groupTitle: Number(column.position!.colSpan) >= 1,
+                  isFirstColumn: column.position!.gridIndex === 0,
+                  isFirstRow: column.position!.level === 0,
                   isLastInColumn:
-                    column.position.highLevelIndex !==
-                    columnsWithMetaData(columnsArr.flat())[columnIdx + 1]?.position.highLevelIndex,
+                    column.position?.topHeaderGridIndex !==
+                    flattenedColumnsArr[columnIdx + 1]?.position?.topHeaderGridIndex,
                 })}
                 showVerticalShadow={
                   showVerticalCellShadow &&
-                  column?.position.gridIndex + column?.position.colSpan === stickyColumnsGrid
+                  column?.position!.gridIndex + (column?.position!.colSpan || 1) ===
+                    stickyColumnsGrid
                 }
               >
                 {column.title}
@@ -491,7 +494,9 @@ export const Table = <T extends TableRow>({
                   <TableCell
                     type="content"
                     key={column.accessor}
-                    style={{ left: getStickyLeftOffset(columnIdx, column.position.highLevelIndex) }}
+                    style={{
+                      left: getStickyLeftOffset(columnIdx, column.position!.topHeaderGridIndex),
+                    }}
                     wrapperClassName={cnTable('ContentCell', {
                       isActive: activeRow ? activeRow.id === row.id : false,
                       isDarkned: activeRow
@@ -504,7 +509,8 @@ export const Table = <T extends TableRow>({
                     isClickable={!!isRowsClickable}
                     showVerticalShadow={
                       showVerticalCellShadow &&
-                      column?.position.gridIndex + column?.position.colSpan === stickyColumnsGrid
+                      column?.position!.gridIndex + (column?.position!.colSpan || 1) ===
+                        stickyColumnsGrid
                     }
                     isBorderTop={rowIdx > 0 && borderBetweenRows}
                     isBorderLeft={columnIdx > 0 && borderBetweenColumns}

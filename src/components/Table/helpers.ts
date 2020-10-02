@@ -1,11 +1,11 @@
 import { ColumnWidth, RowField, SortingState, TableColumn, TableRow } from './Table';
 
 export type Position = {
-  colSpan: number;
+  colSpan?: number;
   rowSpan?: number;
   level: number;
   gridIndex: number;
-  highLevelIndex: number;
+  topHeaderGridIndex: number;
 };
 
 export const getColumnsSize = (sizes: ColumnWidth[]): string => {
@@ -113,7 +113,7 @@ export const transformColumns = <T extends TableRow>(
     /* eslint-disable-next-line no-param-reassign */
     if (!colArr[level]) colArr[level] = [];
     let curLevel = level;
-    const highLevelIndex = tpi ?? i;
+    const topHeaderGridIndex = tpi ?? i;
     const prevItem = colArr[level][colArr[level].length - 1];
     const gridIndex = prevItem
       ? prevItem.position.gridIndex + ((prevItem.position.colSpan || 1) - 1) + 1
@@ -133,8 +133,7 @@ export const transformColumns = <T extends TableRow>(
       colArr[level].push({
         ...item,
         position: {
-          colSpan: 1,
-          highLevelIndex,
+          topHeaderGridIndex,
           gridIndex,
           rowSpan,
           level,
@@ -145,12 +144,12 @@ export const transformColumns = <T extends TableRow>(
         ...item,
         position: {
           colSpan: getLastChildrenCount(item.columns),
-          highLevelIndex,
+          topHeaderGridIndex,
           gridIndex,
           level,
         },
       });
-      transformColumns(item.columns, maxLevel, curLevel + 1, colArr, highLevelIndex);
+      transformColumns(item.columns, maxLevel, curLevel + 1, colArr, topHeaderGridIndex);
     }
   });
 
