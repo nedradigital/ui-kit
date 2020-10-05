@@ -85,22 +85,20 @@ const getLastChildrenCount = <T extends TableRow>(columns: Array<TableColumn<T>>
 };
 
 export const transformColumns = <T extends TableRow>(
-  columns: Array<TableColumn<T>>,
+  columns: Array<TableColumn<T> & { position?: Position }>,
   maxLevel: number,
   level = 0,
   colArr: any[] = [],
   thi?: number,
 ) => {
-  columns.forEach((item: TableColumn<T>, i: number) => {
+  columns.forEach((item: TableColumn<T> & { position?: Position }, i: number) => {
     /* eslint-disable-next-line no-param-reassign */
     if (!colArr[level]) colArr[level] = [];
     const prevItem = colArr[level][colArr[level].length - 1];
     const topHeaderGridIndex = thi ?? i;
-    const gridIndex = prevItem
-      ? prevItem.position.gridIndex + (prevItem.position.colSpan || 1)
-      : 0;
+    const gridIndex = prevItem ? prevItem.position.gridIndex + (prevItem.position.colSpan || 1) : 0;
 
-    const handledItem = {
+    const handledItem: TableColumn<T> & { position: Position } = {
       ...item,
       position: {
         topHeaderGridIndex,
