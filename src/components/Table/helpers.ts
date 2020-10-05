@@ -84,72 +84,38 @@ const getLastChildrenCount = <T extends TableRow>(columns: Array<TableColumn<T>>
   return count;
 };
 
-export const getLastChildrenArray = <T extends TableRow>(columns: Array<TableColumn<T>>) => {
-  const array: Array<TableColumn<T>> = [];
-
-  const traverse = (cols: Array<TableColumn<T>>) => {
-    cols.forEach((item: TableColumn<T>) => {
-      if (item.columns) {
-        traverse(item.columns);
-      } else {
-        array.push(item);
-      }
-    });
-  };
-
-  traverse(columns);
-
-  return array;
-};
-
 export const transformColumns = <T extends TableRow>(
   columns: Array<TableColumn<T>>,
   maxLevel: number,
   level = 0,
   colArr: any[] = [],
-  tpi?: number,
+  thi?: number,
 ) => {
   columns.forEach((item: TableColumn<T>, i: number) => {
     /* eslint-disable-next-line no-param-reassign */
     if (!colArr[level]) colArr[level] = [];
-    let curLevel = level;
-    const topHeaderGridIndex = tpi ?? i;
     const prevItem = colArr[level][colArr[level].length - 1];
+    const topHeaderGridIndex = thi ?? i;
     const gridIndex = prevItem
-      ? prevItem.position.gridIndex + ((prevItem.position.colSpan || 1) - 1) + 1
+      ? prevItem.position.gridIndex + (prevItem.position.colSpan || 1)
       : 0;
 
-    if (!item.columns) {
-      let rowSpan = 1;
-      while (curLevel < maxLevel - 1) {
-        /* eslint-disable-next-line no-param-reassign */
-        if (!colArr[curLevel]) colArr[curLevel] = [];
-        curLevel++;
-        rowSpan++;
-      }
-      /* eslint-disable-next-line no-param-reassign */
-      if (!colArr[level]) colArr[level] = [];
+    const handledItem = {
+      ...item,
+      position: {
+        topHeaderGridIndex,
+        gridIndex,
+        level,
+      },
+    };
 
-      colArr[level].push({
-        ...item,
-        position: {
-          topHeaderGridIndex,
-          gridIndex,
-          rowSpan,
-          level,
-        },
-      });
+    if (!handledItem.columns) {
+      handledItem.position.rowSpan = maxLevel - level;
+      colArr[level].push(handledItem);
     } else {
-      colArr[curLevel].push({
-        ...item,
-        position: {
-          colSpan: getLastChildrenCount(item.columns),
-          topHeaderGridIndex,
-          gridIndex,
-          level,
-        },
-      });
-      transformColumns(item.columns, maxLevel, curLevel + 1, colArr, topHeaderGridIndex);
+      handledItem.position.colSpan = getLastChildrenCount(handledItem.columns);
+      colArr[level].push(handledItem);
+      transformColumns(handledItem.columns, maxLevel, level + 1, colArr, topHeaderGridIndex);
     }
   });
 
