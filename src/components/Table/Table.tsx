@@ -122,24 +122,24 @@ export const Table = <T extends TableRow>({
   emptyRowsPlaceholder = defaultEmptyRowsPlaceholder,
   className,
 }: Props<T>): React.ReactElement => {
-  const columnsArr = transformColumns(columns, getMaxLevel(columns));
+  const headers = transformColumns(columns, getMaxLevel(columns));
   const stickyColumnsGrid =
-    columnsArr[0][stickyColumns - 1]?.position.gridIndex +
-    (columnsArr[0][stickyColumns - 1]?.position.colSpan || 1);
+    headers[0][stickyColumns - 1]?.position.gridIndex +
+    (headers[0][stickyColumns - 1]?.position.colSpan || 1);
   const headerRowsRefs = React.useRef<Record<number, HTMLDivElement | null>>({});
   const headerColumnsHeights: Array<number> = Object.values(headerRowsRefs.current)
     .filter(isNotNil)
     .map((row) => row.getBoundingClientRect().height);
-  const flattenedColumnsArr = columnsArr
+  const flattenedHeaders = headers
     .flat()
     .map((column, index) => ({ ...column, height: headerColumnsHeights[index] }));
-  const headerRowsHeights = columnsArr.map((arr, index) => {
+  const headerRowsHeights = headers.map((arr, index) => {
     return Math.min.apply(
       null,
-      flattenedColumnsArr.filter((col) => col.position.level === index).map((item) => item.height),
+      flattenedHeaders.filter((col) => col.position.level === index).map((item) => item.height),
     );
   });
-  const lowHeaders = flattenedColumnsArr
+  const lowHeaders = flattenedHeaders
     .filter(({ position: { colSpan } }) => !colSpan)
     .sort((a, b) => {
       if (a.position.topHeaderGridIndex !== b.position.topHeaderGridIndex) {
@@ -382,7 +382,7 @@ export const Table = <T extends TableRow>({
         ),
       )}
       <div className={cnTable('HeaderRow')}>
-        {columnsWithMetaData(flattenedColumnsArr).map(
+        {columnsWithMetaData(flattenedHeaders).map(
           (
             column: TableColumn<T> & {
               isSortingActive: boolean;
@@ -425,7 +425,7 @@ export const Table = <T extends TableRow>({
                   isFirstRow: column.position!.level === 0,
                   isLastInColumn:
                     column.position?.topHeaderGridIndex !==
-                    flattenedColumnsArr[columnIdx + 1]?.position?.topHeaderGridIndex,
+                    flattenedHeaders[columnIdx + 1]?.position?.topHeaderGridIndex,
                 })}
                 showVerticalShadow={
                   showVerticalCellShadow &&
