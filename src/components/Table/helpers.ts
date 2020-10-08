@@ -85,37 +85,47 @@ const getLastChildrenCount = <T extends TableRow>(columns: Array<TableColumn<T>>
 };
 
 export const transformColumns = <T extends TableRow>(
-  columns: Array<TableColumn<T> & { position?: Position }>,
+  columns: Array<TableColumn<T>>,
   maxLevel: number,
-  level = 0,
-  colArr: any[] = [],
-  thi?: number,
-) => {
-  columns.forEach((item: TableColumn<T> & { position?: Position }, i: number) => {
-    /* eslint-disable-next-line no-param-reassign */
-    if (!colArr[level]) colArr[level] = [];
-    const prevItem = colArr[level][colArr[level].length - 1];
-    const topHeaderGridIndex = thi ?? i;
-    const gridIndex = prevItem ? prevItem.position.gridIndex + (prevItem.position.colSpan || 1) : 0;
+): Array<TableColumn<T> & { position: Position }>[] => {
+  const stack = [{ columns, index: 0 }];
+  const headersArr: Array<TableColumn<T> & { position: Position }>[] = [];
 
-    const handledItem: TableColumn<T> & { position: Position } = {
-      ...item,
-      position: {
-        topHeaderGridIndex,
-        gridIndex,
-        level,
-      },
-    };
+  while (stack.length) {
+    const level = stack.length - 1;
+    const node = stack[level];
+    const item: TableColumn<T> = node.columns[node.index];
 
-    if (!handledItem.columns) {
-      handledItem.position.rowSpan = maxLevel - level;
-      colArr[level].push(handledItem);
+    if (item) {
+      if (!headersArr[level]) headersArr[level] = [];
+      const topHeaderGridIndex = stack[0].index;
+      const prevItem = headersArr[level][headersArr[level].length - 1];
+      const gridIndex = prevItem
+        ? prevItem.position.gridIndex + (prevItem.position.colSpan || 1)
+        : 0;
+
+      const handledItem: TableColumn<T> & { position: Position } = {
+        ...item,
+        position: {
+          topHeaderGridIndex,
+          gridIndex,
+          level,
+        },
+      };
+
+      if (!handledItem.columns) {
+        handledItem.position.rowSpan = maxLevel - level;
+        headersArr[level].push(handledItem);
+      } else {
+        handledItem.position.colSpan = getLastChildrenCount(handledItem.columns);
+        headersArr[level].push(handledItem);
+        stack.push({ columns: handledItem.columns, index: 0 });
+      }
+      node.index++;
     } else {
-      handledItem.position.colSpan = getLastChildrenCount(handledItem.columns);
-      colArr[level].push(handledItem);
-      transformColumns(handledItem.columns, maxLevel, level + 1, colArr, topHeaderGridIndex);
+      stack.pop();
     }
-  });
+  }
 
-  return colArr;
+  return headersArr;
 };

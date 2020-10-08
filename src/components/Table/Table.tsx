@@ -130,9 +130,10 @@ export const Table = <T extends TableRow>({
   const headerColumnsHeights: Array<number> = Object.values(headerRowsRefs.current)
     .filter(isNotNil)
     .map((row) => row.getBoundingClientRect().height);
-  const flattenedHeaders = headers
-    .flat()
-    .map((column, index) => ({ ...column, height: headerColumnsHeights[index] }));
+  const flattenedHeaders: Array<TableColumn<T> & {
+    position: Position;
+    height: number;
+  }> = headers.flat().map((column, index) => ({ ...column, height: headerColumnsHeights[index] }));
   const headerRowsHeights = headers.map((arr, index) => {
     return Math.min.apply(
       null,
