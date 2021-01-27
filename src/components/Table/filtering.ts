@@ -2,6 +2,9 @@ import { useState } from 'react';
 
 import { isDefined } from '../../utils/type-guards';
 
+import { TableCheckboxGroupExtraFilterProps } from './CheckboxGroupExtraFilter/TableCheckboxGroupExtraFilter';
+import { TableChoiceGroupExtraFilterProps } from './ChoiceGroupExtraFilter/TableChoiceGroupExtraFilter';
+import { TableRangeExtraFilterProps } from './RangeExtraFilter/TableRangeExtraFilter';
 import { RowField, TableColumn, TableRow } from './Table';
 
 export type Filters<T extends TableRow> = Array<{
@@ -10,6 +13,31 @@ export type Filters<T extends TableRow> = Array<{
   field: RowField<T>;
   filterer: (value: any) => boolean;
 }>;
+
+export type ExtraFilter = {
+  filterer: (cellValue: any, filterValue: any) => boolean;
+  id: string;
+  tooltip:
+    | { type: 'range'; props: TableRangeExtraFilterProps }
+    | {
+        type: 'choiceGroup';
+        props: TableChoiceGroupExtraFilterProps;
+      }
+    | {
+        type: 'checkboxGroup';
+        props: TableCheckboxGroupExtraFilterProps;
+      };
+};
+
+export type ExtraFilters<T extends TableRow> = {
+  [key in RowField<T>]: ExtraFilter | undefined;
+};
+
+export type ExtraFiltersValues = {
+  [key: string]: ExtraFilterValue;
+};
+
+export type ExtraFilterValue = null | Array<{ name: string }> | { name: string };
 
 export type SortByProps<T extends TableRow> = {
   sortingBy: keyof T;
@@ -102,28 +130,44 @@ export const getSelectedFiltersList = <T extends TableRow>({
 
 export const filterTableData = <T extends TableRow>({
   data,
-  filters,
+  filters = [],
   selectedFilters,
+  extraFilters,
+  extraFiltersValues,
 }: {
   data: T[];
-  filters: Filters<T>;
+  filters?: Filters<T>;
   selectedFilters: SelectedFilters;
+  extraFilters?: ExtraFilters<T>;
+  extraFiltersValues?: ExtraFiltersValues;
 }): T[] => {
   const mutableFilteredData = [];
 
   for (const row of data) {
     const columnNames = Object.keys(row);
+
     let rowIsValid = true;
 
     for (const columnName of columnNames) {
       const columnFilters = selectedFilters[columnName];
 
+      const columnExtraFilter = extraFilters && extraFilters[columnName];
+
+      if (columnExtraFilter && extraFiltersValues && extraFiltersValues[columnName]) {
+        const cellContent = row[columnName];
+
+        if (!columnExtraFilter.filterer(cellContent, extraFiltersValues[columnName])) {
+          rowIsValid = false;
+          break;
+        }
+      }
+
       if (columnFilters && columnFilters.length) {
         let cellIsValid = false;
+        const cellContent = row[columnName];
 
         for (const filterId of columnFilters) {
           const filter = filters.find(({ id }) => id === filterId);
-          const cellContent = row[columnName];
 
           if (filter && filter.filterer(cellContent)) {
             cellIsValid = true;
@@ -197,4 +241,42 @@ export const useSelectedFilters = <T extends TableRow>(
     removeOneSelectedFilter,
     removeAllSelectedFilters,
   };
+};
+
+const getAllExtraFiltersInitialState = <T extends TableRow>(
+  extraFilters: ExtraFilters<T> | undefined,
+) => {
+  if (!extraFilters) {
+    return {};
+  }
+
+  return Object.keys(extraFilters).reduce<ExtraFiltersValues>((acc, field) => {
+    if (!acc[field]) {
+      acc[field] = null;
+    }
+
+    return acc;
+  }, {});
+};
+
+export const useExtraFilters = <T extends TableRow>(
+  extraFilters?: ExtraFilters<T>,
+): {
+  extraFiltersValues: ExtraFiltersValues;
+  updateExtraFilterValue: (field: string, value: any) => void;
+  resetExtraFilterValue: (field: string) => void;
+} => {
+  const [extraFiltersValues, setExtraFiltersValues] = useState(
+    getAllExtraFiltersInitialState(extraFilters),
+  );
+
+  const updateExtraFilterValue = (field: string, value: any) => {
+    setExtraFiltersValues({ ...extraFiltersValues, [field]: value });
+  };
+
+  const resetExtraFilterValue = (field: string) => {
+    updateExtraFilterValue(field, null);
+  };
+
+  return { extraFiltersValues, updateExtraFilterValue, resetExtraFilterValue };
 };

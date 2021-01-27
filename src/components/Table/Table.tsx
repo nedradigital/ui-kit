@@ -16,6 +16,7 @@ import { TableHeader } from './Header/TableHeader';
 import { TableResizer } from './Resizer/TableResizer';
 import { TableSelectedOptionsList } from './SelectedOptionsList/TableSelectedOptionsList';
 import {
+  ExtraFilters,
   fieldFiltersPresent,
   FieldSelectedValues,
   Filters,
@@ -24,6 +25,7 @@ import {
   isSelectedFiltersPresent,
   onSortBy,
   SelectedFilters,
+  useExtraFilters,
   useSelectedFilters,
 } from './filtering';
 import {
@@ -100,6 +102,7 @@ export type Props<T extends TableRow> = {
   columns: Array<TableColumn<T>>;
   rows: T[];
   filters?: Filters<T>;
+  extraFilters?: ExtraFilters<T>;
   onSortBy?: onSortBy<T>;
   size?: Size;
   stickyHeader?: boolean;
@@ -152,6 +155,7 @@ export const Table = <T extends TableRow>({
   rows,
   size = 'l',
   filters,
+  extraFilters,
   isResizable = false,
   stickyHeader = false,
   stickyColumns = 0,
@@ -200,6 +204,11 @@ export const Table = <T extends TableRow>({
     removeOneSelectedFilter,
     removeAllSelectedFilters,
   } = useSelectedFilters(filters, onFiltersUpdated);
+
+  const { updateExtraFilterValue, resetExtraFilterValue, extraFiltersValues } = useExtraFilters(
+    extraFilters,
+  );
+
   /*
     Подписываемся на изменения размеров таблицы, но не используем значения из
     хука так как нам нужна ширина и высота таблицы без размера скролла. Этот хук
@@ -368,12 +377,18 @@ export const Table = <T extends TableRow>({
   const headersWithMetaData: Array<Header<T> & ColumnMetaData> = columnsWithMetaData(
     flattenedHeaders,
   );
-
   const sortedTableData = sortingData(rows, sorting, onSortBy);
+
   const filteredData =
-    !filters || !isSelectedFiltersPresent(selectedFilters)
+    !filters && !extraFilters && !isSelectedFiltersPresent(selectedFilters)
       ? sortedTableData
-      : filterTableData({ data: sortedTableData, filters, selectedFilters });
+      : filterTableData({
+          data: sortedTableData,
+          filters,
+          selectedFilters,
+          extraFilters,
+          extraFiltersValues,
+        });
 
   const { maxVisibleRows = 210, scrollableEl = tableRef.current } = lazyLoad || {};
 
@@ -498,6 +513,10 @@ export const Table = <T extends TableRow>({
         handleFilterTogglerClick={handleFilterTogglerClick}
         handleTooltipSave={handleTooltipSave}
         filters={filters}
+        extraFilters={extraFilters}
+        extraFiltersValues={extraFiltersValues}
+        handleExtraFilterReset={resetExtraFilterValue}
+        handleExtraFilterSave={updateExtraFilterValue}
         visibleFilter={visibleFilter}
         selectedFilters={selectedFilters}
         showHorizontalCellShadow={showHorizontalCellShadow}

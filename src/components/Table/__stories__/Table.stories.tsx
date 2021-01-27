@@ -127,6 +127,71 @@ export const WithBagde = createStory(
   },
 );
 
+export const WithFilters = createStory(
+  () => {
+    return (
+      <div className={cnTableStories({ fixedSize: true })}>
+        <Table
+          {...getKnobs(tableData)}
+          extraFilters={{
+            year: {
+              filterer: (value, { min = -Infinity, max = Infinity }) => {
+                console.log(value, min, max);
+                return min <= value && max >= value;
+              },
+              id: 'yearFilter',
+              tooltip: {
+                type: 'range',
+                props: {},
+              },
+            },
+            field: {
+              filterer: (value, filterValue) => {
+                console.log(value, filterValue);
+
+                for (const checkboxValue of filterValue) {
+                  if (value === checkboxValue.name) {
+                    return true;
+                  }
+                }
+
+                return false;
+              },
+              id: 'fieldFilter',
+              tooltip: {
+                type: 'checkboxGroup',
+                props: {
+                  title: 'test checkbox',
+                  items: [{ name: 'Великое' }, { name: 'Приобское' }],
+                  withSearch: true,
+                },
+              },
+            },
+            type: {
+              filterer: (value, filterValue) => {
+                console.log(value, filterValue);
+
+                return value === filterValue.name;
+              },
+              id: 'typeFilter',
+              tooltip: {
+                type: 'choiceGroup',
+                props: {
+                  title: 'test choice',
+                  items: [{ name: 'Нефтяное' }, { name: 'Конденсатное' }],
+                },
+              },
+            },
+          }}
+        />
+      </div>
+    );
+  },
+  {
+    name: 'с экстра фильтрами',
+  },
+);
+
 const WithCheckboxHeaderContent = (): JSX.Element => {
   const ROWS_COUNT = 3;
   const [values, setValues] = React.useState<boolean[]>(new Array(ROWS_COUNT).fill(false));
