@@ -5,6 +5,7 @@ import { boolean, number, object, select, text } from '@storybook/addon-knobs';
 
 import {
   generateData,
+  rangeFilterer,
   tableData,
   tableWithBagdeData,
   tableWithMergedCellsData,
@@ -21,7 +22,10 @@ import { Checkbox } from '../../Checkbox/Checkbox';
 import { OrderedOption, smartSort, SmartSorting } from '../../SmartSorting/SmartSorting';
 import { Text } from '../../Text/Text';
 import { verticalAligns } from '../Cell/TableCell';
+import { TableCheckboxGroupFilter } from '../CheckboxGroupFilter/TableCheckboxGroupFilter';
+import { TableChoiceGroupFilter } from '../ChoiceGroupFilter/TableChoiceGroupFilter';
 import { Filters } from '../filtering';
+import { TableRangeFilter } from '../RangeFilter/TableRangeFilter';
 import { Props, sizes, Table, TableColumn, TableRow, zebraStriped } from '../Table';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
@@ -124,6 +128,60 @@ export const WithBagde = createStory(
   },
   {
     name: 'с Bagde',
+  },
+);
+
+export const WithFilters = createStory(
+  () => {
+    return (
+      <div className={cnTableStories({ fixedSize: true })}>
+        <Table
+          {...getKnobs(tableData)}
+          filters={{
+            year: {
+              field: 'year',
+              id: 'yearFilter',
+              filterer: rangeFilterer,
+              initialValue: { min: 1990, max: 2000 },
+              filterComponent: TableRangeFilter,
+              filterComponentProps: {},
+            },
+
+            field: {
+              field: 'field',
+              id: 'fieldFilter',
+              filterer: (value, selectedValue) => {
+                return selectedValue.name === value;
+              },
+              filterComponent: TableChoiceGroupFilter,
+              initialValue: { name: 'Приобское', value: 'Приобское' },
+              filterComponentProps: { items: [{ name: 'Приобское', value: 'Приобское' }] },
+            },
+
+            type: {
+              field: 'type',
+              id: 'typeFilter',
+              filterer: (value, selectedValue: Array<{ name: string }>) => {
+                return selectedValue.some(({ name }) => name === value);
+              },
+              filterComponent: TableCheckboxGroupFilter,
+              initialValue: [{ name: 'Конденсатное' }],
+              filterComponentProps: {
+                withSearch: true,
+                items: [
+                  { name: 'Нефтяное' },
+                  { name: 'Конденсатное' },
+                  { name: 'Комбинированное' },
+                ],
+              },
+            },
+          }}
+        />
+      </div>
+    );
+  },
+  {
+    name: 'с предустановленными фильтрами',
   },
 );
 

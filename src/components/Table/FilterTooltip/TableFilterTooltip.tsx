@@ -10,31 +10,40 @@ import { Text } from '../../Text/Text';
 
 const cnTableFilterTooltip = cn('TableFilterTooltip');
 
-type Values = string[];
-
-type Props = {
-  options: Array<{
-    value: Values[number];
-    label: string;
-  }>;
-  values: Values;
-  field: string;
-  isOpened: boolean;
-  onChange: (field: string, values: Values) => void;
+export type TableFilterTooltipProps = {
   onToggle: () => void;
+  onConfirm: () => void;
+  onReset: () => void;
+  isOpened: boolean;
+  isActive?: boolean;
+  title?: string;
+  confirmButtonLabel?: string;
+  resetButtonLabel?: string;
   className?: string;
+  field: string;
+  columnEl: HTMLDivElement | null;
 };
 
-export const TableFilterTooltip: React.FC<Props> = ({
-  field,
+export type TableFilterTooltipTextProps = Pick<
+  TableFilterTooltipProps,
+  'title' | 'confirmButtonLabel' | 'resetButtonLabel'
+>;
+
+export const TableFilterTooltip: React.FC<TableFilterTooltipProps> = ({
   isOpened,
-  options,
-  values,
+  isActive,
   className,
-  onChange,
+  title,
   onToggle,
+  onReset,
+  onConfirm,
+  children,
+  confirmButtonLabel = 'Применить',
+  resetButtonLabel = 'Сбросить фильтр',
+  columnEl,
 }) => {
   const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const pseudoColumnRef: React.RefObject<HTMLDivElement> = { current: columnEl };
 
   return (
     <>
@@ -45,44 +54,34 @@ export const TableFilterTooltip: React.FC<Props> = ({
         view="clear"
         onlyIcon
         onClick={onToggle}
-        className={cnTableFilterTooltip('Button', { isOpened }, [className])}
+        className={cnTableFilterTooltip('Button', { isOpened, isActive }, [className])}
         iconLeft={IconFunnel}
       />
-      {isOpened && buttonRef.current && (
+      {isOpened && pseudoColumnRef.current && (
         <Popover
-          anchorRef={buttonRef}
-          possibleDirections={['downRight', 'downLeft']}
-          direction="downRight"
-          offset={4}
+          anchorRef={pseudoColumnRef}
+          possibleDirections={['downRight', 'downLeft', 'downCenter']}
+          direction="downCenter"
+          offset={8}
           arrowOffset={12}
           onClickOutside={onToggle}
         >
           <div className={cnTableFilterTooltip('Content')}>
-            <Text as="div" size="xs" view="primary" className={cnTableFilterTooltip('Title')}>
-              Фильтровать по условию
-            </Text>
-            <select
-              className={cnTableFilterTooltip('Select')}
-              value={[...values]}
-              multiple
-              onChange={(e): void => {
-                onChange(
-                  field,
-                  Array.from(e.target.selectedOptions).map((option) => option.value),
-                );
-              }}
-            >
-              {options.map((option) => (
-                <option
-                  key={option.value}
-                  className={cnTableFilterTooltip('Option')}
-                  value={option.value}
-                  title={option.label}
-                >
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            {title && (
+              <Text
+                view="primary"
+                size="m"
+                className={cnTableFilterTooltip('Title')}
+                lineHeight="l"
+              >
+                {title}
+              </Text>
+            )}
+            {children}
+            <div className={cnTableFilterTooltip('ConfirmButtons')}>
+              <Button label={resetButtonLabel} size="s" view="ghost" onClick={onReset} />
+              <Button label={confirmButtonLabel} size="s" view="primary" onClick={onConfirm} />
+            </div>
           </div>
         </Popover>
       )}

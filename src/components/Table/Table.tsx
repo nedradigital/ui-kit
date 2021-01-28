@@ -14,14 +14,11 @@ import { Text } from '../Text/Text';
 import { HorizontalAlign, TableCell, VerticalAlign } from './Cell/TableCell';
 import { TableHeader } from './Header/TableHeader';
 import { TableResizer } from './Resizer/TableResizer';
-import { TableSelectedOptionsList } from './SelectedOptionsList/TableSelectedOptionsList';
 import {
   fieldFiltersPresent,
-  FieldSelectedValues,
   Filters,
   filterTableData,
-  getSelectedFiltersList,
-  isSelectedFiltersPresent,
+  isSomeFilterActive,
   onSortBy,
   SelectedFilters,
   useSelectedFilters,
@@ -114,7 +111,7 @@ export type Props<T extends TableRow> = {
   className?: string;
   onRowHover?: onRowHover;
   lazyLoad?: LazyLoad;
-  onFiltersUpdated?: (filters: SelectedFilters) => void;
+  onFiltersUpdated?: (filters: SelectedFilters<T>) => void;
 };
 
 export type SortingState<T extends TableRow> = {
@@ -194,12 +191,8 @@ export const Table = <T extends TableRow>({
   const [tableScroll, setTableScroll] = React.useState({ top: 0, left: 0 });
   const tableRef = React.useRef<HTMLDivElement>(null);
   const columnsRefs = React.useRef<Record<number, HTMLDivElement | null>>({});
-  const {
-    selectedFilters,
-    updateSelectedFilters,
-    removeOneSelectedFilter,
-    removeAllSelectedFilters,
-  } = useSelectedFilters(filters, onFiltersUpdated);
+  const { selectedFilters, updateFilterValue } = useSelectedFilters(filters, onFiltersUpdated);
+
   /*
     Подписываемся на изменения размеров таблицы, но не используем значения из
     хука так как нам нужна ширина и высота таблицы без размера скролла. Этот хук
@@ -261,20 +254,6 @@ export const Table = <T extends TableRow>({
 
   const handleFilterTogglerClick = (id: string) => (): void => {
     setVisibleFilter(visibleFilter === id ? null : id);
-  };
-
-  const handleTooltipSave = (field: string, tooltipSelectedFilters: FieldSelectedValues): void => {
-    updateSelectedFilters(field, tooltipSelectedFilters);
-  };
-
-  const removeSelectedFilter = (tableFilters: Filters<T>) => (filter: string): void => {
-    removeOneSelectedFilter(tableFilters, filter);
-  };
-
-  const resetSelectedFilters = (): void => {
-    if (filters && filters.length) {
-      removeAllSelectedFilters(filters);
-    }
   };
 
   const getStickyLeftOffset = (
@@ -349,7 +328,8 @@ export const Table = <T extends TableRow>({
       const showResizer =
         stickyColumns > columnIndex ||
         stickyColumnsWidth + tableScroll.left < columnLeftOffset + columnWidth;
-      const isFilterActive = (selectedFilters[column.accessor] || []).length > 0;
+      const isFilterActive =
+        selectedFilters[column.accessor] && selectedFilters[column.accessor].isActive;
 
       return {
         ...column,
@@ -371,9 +351,12 @@ export const Table = <T extends TableRow>({
 
   const sortedTableData = sortingData(rows, sorting, onSortBy);
   const filteredData =
-    !filters || !isSelectedFiltersPresent(selectedFilters)
+    !selectedFilters || !isSomeFilterActive(selectedFilters)
       ? sortedTableData
-      : filterTableData({ data: sortedTableData, filters, selectedFilters });
+      : filterTableData({
+          data: sortedTableData,
+          selectedFilters,
+        });
 
   const { maxVisibleRows = 210, scrollableEl = tableRef.current } = lazyLoad || {};
 
@@ -496,22 +479,12 @@ export const Table = <T extends TableRow>({
         getSortIcon={getSortIcon}
         handleSortClick={handleSortClick}
         handleFilterTogglerClick={handleFilterTogglerClick}
-        handleTooltipSave={handleTooltipSave}
-        filters={filters}
+        handleTooltipSave={updateFilterValue}
         visibleFilter={visibleFilter}
         selectedFilters={selectedFilters}
         showHorizontalCellShadow={showHorizontalCellShadow}
         borderBetweenColumns={borderBetweenColumns}
       />
-      {filters && isSelectedFiltersPresent(selectedFilters) && (
-        <div className={cnTable('RowWithoutCells')}>
-          <TableSelectedOptionsList
-            values={getSelectedFiltersList({ filters, selectedFilters, columns: lowHeaders })}
-            onRemove={removeSelectedFilter(filters)}
-            onReset={resetSelectedFilters}
-          />
-        </div>
-      )}
       {rowsData.length > 0 ? (
         rowsData.map((row, rowIdx) => {
           const nth = (rowIdx + 1) % 2 === 0 ? 'even' : 'odd';

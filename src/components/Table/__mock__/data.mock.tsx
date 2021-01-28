@@ -1,6 +1,9 @@
 import React from 'react';
 
+import { isDefined } from '../../../utils/type-guards';
 import { Badge } from '../../Badge/Badge';
+import { TableCheckboxGroupFilter } from '../CheckboxGroupFilter/TableCheckboxGroupFilter';
+import { TableRangeFilter } from '../RangeFilter/TableRangeFilter';
 import { Props as TableProps, TableFilters as Filters, TableRow } from '../Table';
 
 export const rows = [
@@ -56,178 +59,75 @@ export const rows = [
   },
 ];
 
-export const filters: Filters<typeof rows[number]> = [
-  {
-    id: 'olderThan2018',
-    name: 'Старше 2018 года',
-    filterer: (value: number | string) => Number(value) > 2018,
-    field: 'year',
-  },
-  {
-    id: 'olderThan2000',
-    name: 'Старше 2000 года',
-    filterer: (value: number | string) => Number(value) > 2000,
-    field: 'year',
-  },
-  {
-    id: 'inRangeOf90s',
-    name: 'Датируемые 90-ми годами',
-    filterer: (value: number | string) => Number(value) >= 1990 && Number(value) <= 1999,
-    field: 'year',
-  },
-  {
-    id: 'equalOrOlder80s',
-    name: 'Датируемые 80-ми годами и старше',
-    filterer: (value: number | string) => Number(value) <= 1989,
-    field: 'year',
-  },
-  {
-    id: 'oil',
-    name: 'Нефтяное',
-    filterer: (value: string) => value === 'Нефтяное',
-    field: 'type',
-  },
-  {
-    id: 'condensated',
-    name: 'Конденсатное',
-    filterer: (value: string) => value === 'Конденсатное',
-    field: 'type',
-  },
-  {
-    id: 'combined',
-    name: 'Комбинированное',
-    filterer: (value: string) => value === 'Комбинированное',
-    field: 'type',
-  },
-  {
-    id: 'priobskoye',
-    name: 'Приобское',
-    filterer: (value: string) => value === 'Приобское',
-    field: 'field',
-  },
-  {
-    id: 'urengoyskoye',
-    name: 'Уренгойское газонефтеконденсат­ное',
-    filterer: (value: string) => value === 'Уренгойское газонефтеконденсат­ное',
-    field: 'field',
-  },
-  {
-    id: 'krasnoleninskaya',
-    name: 'Красноленинская группа',
-    filterer: (value: string) => value === 'Красноленинская группа',
-    field: 'field',
-  },
-  {
-    id: 'velikoye',
-    name: 'Великое',
-    filterer: (value: string) => value === 'Великое',
-    field: 'field',
-  },
-  {
-    id: 'rusGasoil',
-    name: 'Русское газонефтяное',
-    filterer: (value: string) => value === 'Русское газонефтяное',
-    field: 'field',
-  },
-  {
-    id: 'estimatedReservesLessThan1000',
-    name: 'Меньше 1000',
-    filterer: (value: number | string) => Number(value) < 1000,
-    field: 'estimatedReserves',
-  },
-  {
-    id: 'estimatedReservesFrom1000To5000',
-    name: 'От 1000 (вкл.) до 5000 (не вкл.)',
-    filterer: (value: number | string) => Number(value) >= 1000 && Number(value) < 5000,
-    field: 'estimatedReserves',
-  },
-  {
-    id: 'estimatedReservesFrom5000To8000',
-    name: 'От 5000 (вкл.) до 8000 (не вкл.)',
-    filterer: (value: number | string) => Number(value) >= 5000 && Number(value) < 8000,
-    field: 'estimatedReserves',
-  },
-  {
-    id: 'estimatedReserves8000AndMore',
-    name: '8000 и более',
-    filterer: (value: number | string) => Number(value) >= 8000,
-    field: 'estimatedReserves',
-  },
-  {
-    id: 'remainingReservesLessThan1000',
-    name: 'Меньше 1000',
-    filterer: (value: number | string) => Number(value) < 1000,
-    field: 'remainingReserves',
-  },
-  {
-    id: 'remainingReservesFrom1000To5000',
-    name: 'От 1000 (вкл.) до 5000 (не вкл)',
-    filterer: (value: number | string) => Number(value) >= 1000 && Number(value) < 5000,
-    field: 'remainingReserves',
-  },
-  {
-    id: 'remainingReservesFrom5000To8000',
-    name: 'От 5000 (вкл.) до 8000 (не вкл)',
-    filterer: (value: number | string) => Number(value) >= 5000 && Number(value) < 8000,
-    field: 'remainingReserves',
-  },
-  {
-    id: 'remainingReserves8000AndMore',
-    name: '8000 и более',
-    filterer: (value: number | string) => Number(value) >= 8000,
-    field: 'remainingReserves',
-  },
-  {
-    id: 'productionLessThan100',
-    name: 'Меньше 100',
-    filterer: (value: number | string) => Number(value) < 100,
-    field: 'production',
-  },
-  {
-    id: 'productionFrom100To200',
-    name: 'От 100 (вкл.) до 200 (не вкл.)',
-    filterer: (value: number | string) => Number(value) >= 100 && Number(value) < 200,
-    field: 'production',
-  },
-  {
-    id: 'productionFrom200To300',
-    name: 'От 200 (вкл.) до 300 (не вкл.)',
-    filterer: (value: number | string) => Number(value) >= 200 && Number(value) < 300,
-    field: 'production',
-  },
-  {
-    id: 'productionMoreThan300',
-    name: '300 и более',
-    filterer: (value: number | string) => Number(value) >= 300,
-    field: 'production',
-  },
-  {
-    id: 'totalLessThan100',
-    name: 'Меньше 100',
-    filterer: (value: number | string) => Number(value) < 100,
-    field: 'total',
-  },
-  {
-    id: 'totalFrom100To200',
-    name: 'От 100 (вкл.) до 200 (не вкл.)',
-    filterer: (value: number | string) => Number(value) >= 100 && Number(value) < 200,
-    field: 'total',
-  },
-  {
-    id: 'totalFrom200To300',
-    name: 'От 200 (вкл.) до 300 (не вкл.)',
-    filterer: (value: number | string) => Number(value) >= 200 && Number(value) < 300,
-    field: 'total',
-  },
-  {
-    id: 'totalMoreThan300',
-    name: '300 и более',
-    filterer: (value: number | string) => Number(value) >= 300,
-    field: 'total',
-  },
-];
+export const rangeFilterer = (
+  value: number | string,
+  filterValue: { min: number | string; max: number | string },
+): boolean => {
+  const minValue = isDefined(filterValue.min) ? filterValue.min : -Infinity;
+  const maxValue = isDefined(filterValue.max) ? filterValue.max : Infinity;
 
-export const tableData: TableProps<typeof rows[number]> = {
+  return Number(value) <= Number(maxValue) && Number(value) >= Number(minValue);
+};
+
+export const filters: Filters<TableRow> = {
+  year: {
+    id: 'yearFilter',
+    filterer: rangeFilterer,
+    field: 'year',
+    filterComponent: TableRangeFilter,
+  },
+  field: {
+    id: 'fieldFilter',
+    filterer: (value: string, filterValue: Array<{ name: string; value: string }>): boolean => {
+      return filterValue.some(({ name }) => name === value);
+    },
+    field: 'field',
+    filterComponent: TableCheckboxGroupFilter,
+    filterComponentProps: {
+      items: [
+        { name: 'Нефтяное', value: 'oil' },
+        { name: 'Конденсатное', value: 'condensated' },
+        { name: 'Комбинированное', value: 'combined' },
+        { name: 'Приобское', value: 'priobskoye' },
+        { name: 'Уренгойское газонефтеконденсат­ное', value: 'urengoyskoye' },
+        { name: 'Красноленинская группа', value: 'krasnoleninskaya' },
+        { name: 'Великое', value: 'velikoye' },
+        { name: 'Русское газонефтяное', value: 'rusGasoil' },
+      ],
+      title: 'Выбрать месторождение',
+    },
+  },
+  estimatedReserves: {
+    id: 'estimatedReservesFilter',
+    filterer: rangeFilterer,
+    field: 'estimatedReserves',
+    filterComponent: TableRangeFilter,
+  },
+
+  remainingReserves: {
+    id: 'remainingReservesFilter',
+    filterer: rangeFilterer,
+    field: 'remainingReserves',
+    filterComponent: TableRangeFilter,
+  },
+
+  production: {
+    id: 'productionFilter',
+    filterer: rangeFilterer,
+    field: 'production',
+    filterComponent: TableRangeFilter,
+  },
+
+  total: {
+    id: 'totalFilter',
+    filterer: rangeFilterer,
+    field: 'total',
+    filterComponent: TableRangeFilter,
+    filterComponentProps: { title: 'Всего добыто' },
+  },
+};
+
+export const tableData: TableProps<{ id: string; [key: string]: any }> = {
   columns: [
     {
       title: 'Месторождение',
@@ -488,45 +388,30 @@ export const tableWithBagdeData: TableProps<typeof tableWithTrafficLightDataRows
     },
   ],
   rows: tableWithTrafficLightDataRows,
-  filters: [
-    {
-      id: 'fieldNorthDrill',
-      name: 'Северный бур',
-      filterer: (value: string) => value === 'Северный бур',
+  filters: {
+    field: {
       field: 'field',
+      id: 'fieldFilter',
+      filterer: (value: string, filterValue: Array<{ name: string; value: string }>): boolean => {
+        return filterValue.some(({ name }) => name === value);
+      },
+      filterComponent: TableCheckboxGroupFilter,
+      filterComponentProps: {
+        withSearch: true,
+        items: [
+          { name: 'Северный бур', value: 'fieldNorthDrill' },
+          { name: 'Южное месторождение', value: 'fieldSouthWell' },
+          { name: 'Западный разлом', value: 'fieldWestCrack' },
+        ],
+      },
     },
-    {
-      id: 'fieldSouthWell',
-      name: 'Южное месторождение',
-      filterer: (value: string) => value === 'Южное месторождение',
-      field: 'field',
-    },
-    {
-      id: 'fieldWestCrack',
-      name: 'Западный разлом',
-      filterer: (value: string) => value === 'Западный разлом',
-      field: 'field',
-    },
-
-    {
-      id: 'sumLess10',
-      name: 'Менее 10',
-      filterer: (value: number | string) => Number(value) < 10,
+    sum: {
       field: 'sum',
+      id: 'sumFilter',
+      filterer: rangeFilterer,
+      filterComponent: TableRangeFilter,
     },
-    {
-      id: 'sumFrom10To20',
-      name: 'От 10 (вкл.) до 20 (не вкл.)',
-      filterer: (value: number | string) => Number(value) >= 10 && Number(value) < 20,
-      field: 'sum',
-    },
-    {
-      id: 'sum20AndMore',
-      name: '20 и более',
-      filterer: (value: number | string) => Number(value) >= 20,
-      field: 'sum',
-    },
-  ],
+  },
 };
 
 export const COLUMNS = [

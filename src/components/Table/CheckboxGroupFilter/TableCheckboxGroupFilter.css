@@ -1,0 +1,18 @@
+.TableCheckboxGroupFilter {
+  &-Searchbar {
+    margin-bottom: var(--space-m);
+  }
+
+  &-AllCheckbox {
+    margin-bottom: var(--space-xs);
+    margin-left: calc(var(--control-border-width) + var(--space-s));
+  }
+
+  &-Checkboxes {
+    overflow-y: auto;
+    max-height: 240px;
+    padding: var(--space-s);
+    border: var(--control-border-width) solid var(--color-control-bg-border-default);
+    border-radius: 4px;
+  }
+}

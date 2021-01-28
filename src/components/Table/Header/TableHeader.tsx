@@ -5,10 +5,9 @@ import React from 'react';
 import { cn } from '../../../utils/bem';
 import { Button } from '../../Button/Button';
 import { TableCell } from '../Cell/TableCell';
-import { FieldSelectedValues, Filters, getOptionsForFilters, SelectedFilters } from '../filtering';
-import { TableFilterTooltip } from '../FilterTooltip/TableFilterTooltip';
+import { FilterValue, SelectedFilters } from '../filtering';
 import { Header } from '../helpers';
-import { ColumnMetaData, TableColumn, TableRow } from '../Table';
+import { ColumnMetaData, RowField, TableColumn, TableRow } from '../Table';
 
 const cnTableHeader = cn('TableHeader');
 
@@ -30,10 +29,12 @@ type Props<T extends TableRow> = {
   getSortIcon: (column: Header<T>) => React.FC;
   handleSortClick: (column: TableColumn<T>) => void;
   handleFilterTogglerClick: (id: string) => () => void;
-  handleTooltipSave: (field: string, tooltipSelectedFilters: FieldSelectedValues) => void;
-  filters: Filters<T> | undefined;
+  handleTooltipSave: (
+    field: RowField<T>,
+    filterValue: { value: FilterValue; isActive: boolean },
+  ) => SelectedFilters<T>;
   visibleFilter: string | null;
-  selectedFilters: SelectedFilters;
+  selectedFilters: SelectedFilters<T>;
   showHorizontalCellShadow: boolean;
   borderBetweenColumns: boolean;
 };
@@ -50,7 +51,6 @@ export const TableHeader = <T extends TableRow>({
   handleSortClick,
   handleFilterTogglerClick,
   handleTooltipSave,
-  filters,
   visibleFilter,
   selectedFilters,
   showHorizontalCellShadow,
@@ -82,6 +82,34 @@ export const TableHeader = <T extends TableRow>({
     build(column);
     return headers.some((header) => header.isResized);
   };
+
+  const getFilterTooltip = (
+    column: Header<T> & ColumnMetaData,
+    columnEl: HTMLDivElement | null | undefined,
+  ): React.ReactNode => {
+    const isOpen = visibleFilter === column.accessor;
+
+    if (column.filterable && selectedFilters && selectedFilters[column.accessor]) {
+      const FilterComponent = selectedFilters[column.accessor].filterComponent;
+      const props = selectedFilters[column.accessor].filterComponentProps || {};
+
+      return FilterComponent ? (
+        <FilterComponent
+          {...props}
+          columnEl={columnEl}
+          onToggle={handleFilterTogglerClick(column.accessor)}
+          className={cnTableHeader('Icon', { type: 'filter' })}
+          field={column.accessor}
+          isOpened={isOpen}
+          onConfirm={handleTooltipSave}
+          savedValue={selectedFilters[column.accessor].value}
+        />
+      ) : null;
+    }
+
+    return null;
+  };
+
   return (
     <>
       <div className={cnTableHeader('Row', { withVerticalBorder: borderBetweenColumns })}>
@@ -147,17 +175,7 @@ export const TableHeader = <T extends TableRow>({
                     className={cnTableHeader('Icon', { type: 'sort' })}
                   />
                 )}
-                {filters && column.filterable && (
-                  <TableFilterTooltip
-                    field={column.accessor}
-                    isOpened={visibleFilter === column.accessor}
-                    options={getOptionsForFilters(filters, column.accessor)}
-                    values={selectedFilters[column.accessor] || []}
-                    onChange={handleTooltipSave}
-                    onToggle={handleFilterTogglerClick(column.accessor)}
-                    className={cnTableHeader('Icon', { type: 'filter' })}
-                  />
-                )}
+                {getFilterTooltip(column, headerRowsRefs.current[columnIdx])}
               </div>
             </TableCell>
           );

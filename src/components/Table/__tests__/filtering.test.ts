@@ -1,67 +1,32 @@
+import { rangeFilterer } from '../__mock__/data.mock';
 import {
   fieldFiltersPresent,
   filterTableData,
-  getOptionsForFilters,
   getSelectedFiltersInitialState,
-  getSelectedFiltersList,
-  isSelectedFiltersPresent,
+  isSomeFilterActive,
+  SelectedFilters,
 } from '../filtering';
+import { TableRangeFilter } from '../RangeFilter/TableRangeFilter';
+import { TableRow } from '../Table';
 
-const COUNT_FILTERS = [
-  {
-    id: 'countLess100',
-    name: 'Количество меньше 100',
+const FILTERS: SelectedFilters<TableRow> = {
+  count: {
+    id: 'countFilter',
     field: 'count',
-    filterer: (value: number) => value < 100,
+    filterer: rangeFilterer,
+    filterComponent: TableRangeFilter,
+    value: undefined,
+    isActive: false,
   },
-  {
-    id: 'countEqual100',
-    name: 'Количество равно 100',
-    field: 'count',
-    filterer: (value: number) => value === 100,
-  },
-  {
-    id: 'countMore100',
-    name: 'Количество больше 100',
-    field: 'count',
-    filterer: (value: number) => value > 100,
-  },
-  {
-    id: 'countEqual0',
-    name: 'Количество равно 0',
-    field: 'count',
-    filterer: (value: number) => value === 0,
-  },
-  {
-    id: 'countUndefined',
-    name: 'Количество неизвестно',
-    field: 'count',
-    filterer: (value: number) => value === undefined,
-  },
-] as const;
-
-const PRICE_FILTERS = [
-  {
-    id: 'priceLess100',
-    name: 'Цена меньше 100',
+  price: {
+    id: 'priceFilter',
     field: 'price',
-    filterer: (value: number) => value < 100,
+    filterer: rangeFilterer,
+    filterComponent: TableRangeFilter,
+    value: undefined,
+    isActive: false,
   },
-  {
-    id: 'priceEqual100',
-    name: 'цена равна 100',
-    field: 'price',
-    filterer: (value: number) => value === 100,
-  },
-  {
-    id: 'priceMore100',
-    name: 'Цена больше 100',
-    field: 'price',
-    filterer: (value: number) => value > 100,
-  },
-] as const;
-
-const FILTERS = [...COUNT_FILTERS, ...PRICE_FILTERS];
+} as const;
 
 const DATA = [
   {
@@ -96,8 +61,7 @@ describe('filterTableData', () => {
     expect(
       filterTableData({
         data: DATA,
-        filters: FILTERS,
-        selectedFilters: {},
+        selectedFilters: FILTERS,
       }),
     ).toEqual(DATA);
   });
@@ -106,10 +70,10 @@ describe('filterTableData', () => {
     expect(
       filterTableData({
         data: DATA,
-        filters: FILTERS,
         selectedFilters: {
-          count: ['countEqual0'],
-        },
+          price: { ...FILTERS.price, value: { min: '9000', max: undefined }, isActive: true },
+          count: { ...FILTERS.count, value: { min: undefined, max: '-100' }, isActive: true },
+        } as SelectedFilters<TableRow>,
       }),
     ).toEqual([]);
   });
@@ -118,84 +82,23 @@ describe('filterTableData', () => {
     expect(
       filterTableData({
         data: DATA,
-        filters: FILTERS,
         selectedFilters: {
-          count: ['countLess100'],
-        },
+          price: { ...FILTERS.price, value: { min: 100, max: 100 }, isActive: true },
+        } as SelectedFilters<TableRow>,
       }),
     ).toEqual([DATA[2]]);
-  });
-
-  it('фильтрует внутри столбцов по ИЛИ', () => {
-    expect(
-      filterTableData({
-        data: DATA,
-        filters: FILTERS,
-        selectedFilters: {
-          count: ['countLess100', 'countMore100'],
-        },
-      }),
-    ).toEqual([DATA[0], DATA[2]]);
   });
 
   it('фильтрует по двум строкам', () => {
     expect(
       filterTableData({
         data: DATA,
-        filters: FILTERS,
         selectedFilters: {
-          count: ['countEqual100'],
-          price: ['priceMore100'],
-        },
+          count: { ...FILTERS.count, value: { min: 100, max: 100 }, isActive: true },
+          price: { ...FILTERS.price, value: { min: 150, max: 150 }, isActive: true },
+        } as SelectedFilters<TableRow>,
       }),
     ).toEqual([DATA[1]]);
-  });
-
-  it('не возвращает ничего если среди фильтров отсутствует выбранный', () => {
-    expect(
-      filterTableData({
-        data: DATA,
-        filters: FILTERS,
-        selectedFilters: {
-          count: ['UNDEFINED'],
-        },
-      }),
-    ).toEqual([]);
-  });
-});
-
-describe('getOptionsForFilters', () => {
-  it('возвращает пустой массив, если список фильтров пуст', () => {
-    expect(getOptionsForFilters([], 'count')).toEqual([]);
-  });
-
-  it('возвращает пустой массив, если фильтров для поля нет', () => {
-    expect(getOptionsForFilters(FILTERS, 'name')).toEqual([]);
-  });
-
-  it('возвращает массив с фильтрами для выбранного поля', () => {
-    expect(getOptionsForFilters(FILTERS, 'count')).toEqual([
-      {
-        label: 'Количество меньше 100',
-        value: 'countLess100',
-      },
-      {
-        label: 'Количество равно 100',
-        value: 'countEqual100',
-      },
-      {
-        label: 'Количество больше 100',
-        value: 'countMore100',
-      },
-      {
-        label: 'Количество равно 0',
-        value: 'countEqual0',
-      },
-      {
-        label: 'Количество неизвестно',
-        value: 'countUndefined',
-      },
-    ]);
   });
 });
 
@@ -206,104 +109,36 @@ describe('getSelectedFiltersInitialState', () => {
 
   it('возвращает начальное состояние для каждого типа фильтра', () => {
     expect(getSelectedFiltersInitialState(FILTERS)).toEqual({
-      count: [],
-      price: [],
+      count: FILTERS.count,
+      price: FILTERS.price,
     });
   });
 });
 
-describe('getSelectedFiltersList', () => {
-  const COLUMNS = [
-    { title: 'Количество', accessor: 'count' },
-    { title: 'Цена', accessor: 'price' },
-  ];
-
-  it('возвращает пустой массив, если нет выбранных фильтров', () => {
-    expect(
-      getSelectedFiltersList({
-        filters: FILTERS,
-        selectedFilters: {},
-        columns: COLUMNS,
-      }),
-    ).toEqual([]);
-  });
-
-  it('возвращает массив с выбранными фильтрами для одного поля', () => {
-    expect(
-      getSelectedFiltersList({
-        filters: FILTERS,
-        selectedFilters: {
-          count: ['countLess100'],
-        },
-        columns: COLUMNS,
-      }),
-    ).toEqual([
-      {
-        id: 'countLess100',
-        name: 'Количество меньше 100',
-      },
-    ]);
-  });
-
-  it('возвращает массив с выбранными фильтрами для двух полей', () => {
-    expect(
-      getSelectedFiltersList({
-        filters: FILTERS,
-        selectedFilters: {
-          count: ['countLess100'],
-          price: ['priceLess100'],
-        },
-        columns: COLUMNS,
-      }),
-    ).toEqual([
-      {
-        id: 'countLess100',
-        name: 'Количество меньше 100',
-      },
-      {
-        id: 'priceLess100',
-        name: 'Цена меньше 100',
-      },
-    ]);
-  });
-
-  it('возвращает пустой массив если такого фильтра для поля не существует', () => {
-    expect(
-      getSelectedFiltersList({
-        filters: FILTERS,
-        selectedFilters: {
-          count: ['UNDEFINED'],
-        },
-        columns: COLUMNS,
-      }),
-    ).toEqual([]);
-  });
-});
-
-describe('isSelectedFiltersPresent', () => {
+describe('isSomeFilterActive', () => {
   it('возвращает false если не выбран ни один фильтр', () => {
     expect(
-      isSelectedFiltersPresent({
-        count: [],
-        price: [],
+      isSomeFilterActive({
+        count: FILTERS.count,
+        price: FILTERS.price,
       }),
     ).toEqual(false);
   });
 
   it('возвращает true если выбран фильтр для одного из полей', () => {
     expect(
-      isSelectedFiltersPresent({
-        count: ['countLess100'],
-        price: [],
+      isSomeFilterActive({
+        count: FILTERS.count,
+        price: { ...FILTERS.price, isActive: true },
       }),
     ).toEqual(true);
   });
 
   it('возвращает true если выбраны фильтры для всех полей', () => {
     expect(
-      isSelectedFiltersPresent({
-        count: ['countLess100'],
-        price: ['priceEqual100'],
+      isSomeFilterActive({
+        count: { ...FILTERS.count, isActive: true },
+        price: { ...FILTERS.price, isActive: true },
       }),
     ).toEqual(true);
   });
