@@ -1,4 +1,4 @@
-import { Preview } from '@storybook/addon-docs/dist/blocks';
+import { Meta, Preview, Story } from '@storybook/addon-docs/dist/blocks';
 
 # Таблица
 
@@ -9,6 +9,7 @@ import { Preview } from '@storybook/addon-docs/dist/blocks';
   - [Сортировка](#сортировка)
   - [Строки](#строки)
   - [Фильтры](#фильтры)
+  - [Кастомные фильтры](#кастомные-фильтры)
   - [Заглушка](#заглушка)
 - [Внешний вид](#внешний-вид)
   - [Размер](#размер)
@@ -101,7 +102,7 @@ import { Preview } from '@storybook/addon-docs/dist/blocks';
 
 `field` - поле к которому применять фильтрацию
 
-`filterer` - функция фильрации
+`filterer` - функция фильтрации
 
 ```tsx
 [
@@ -117,6 +118,100 @@ import { Preview } from '@storybook/addon-docs/dist/blocks';
 ### Колбэк на применение фильтра
 
 Если вам нужно повесить обработчик на событие изменения фильтров в таблице (например для загрузки данных, к которым применен фильтр), вы можете сделать это с помощью свойства `onFiltersUpdated`.
+
+### Кастомные фильтры
+
+Кастомные фильтры добавляются с помощью свойства `customFilters`.
+
+`filterer` - функция фильтрации
+
+`filterComponent` - кастомный компонент фильтра
+
+`filterComponentProps` - пропсы для кастомного компонента
+
+`initialValue` - предустановленное значение фильтра
+
+```tsx
+{
+  age: {
+    filterComponent: TableCustomFilterRange,
+    initialValue: {min: 18, max: 100}
+    filterer: (cellValue, filterValue) => {
+      const minValue = isDefined(filterValue.min) ? filterValue.min : -Infinity;
+      const maxValue = isDefined(filterValue.max) ? filterValue.max : Infinity;
+
+      return Number(cellValue) <= Number(maxValue) && Number(cellValue) >= Number(minValue);
+    }
+  },
+  name: {
+    filterComponent: TableCustomFilterCheckboxGroup,
+    filterComponentProps: {
+      withSearch: true,
+      items: [
+          {name: 'Антон', 'value': 'Антон'},
+          {name: 'Василиса', 'value': 'Василиса'},
+          {name: 'Дмитрий', 'value': 'Дмитрий'}
+        ]
+    },
+    filterer: (cellValue, filterValues: Array<{name: string, value: string}>) => {
+      return filterValues.some(
+        (filterValue) => filterValue && filterValue.value === cellValue);
+    }
+  }
+  title: {
+    filterComponent: TableCustomFilterChoiceGroup,
+    filterComponentProps: {
+      items: [
+          {name: 'Бурильщики', 'value': 'drillers'},
+          {name: 'Геологоразведчики', 'value': 'scouts'},
+        ]
+    },
+    filterer: (cellValue, filterValue: {name: string, value: string}) => {
+      if (filterValue.value === 'drillers') {
+        return cellValue === 'Бурильщик'
+      }
+
+      if (filterValue.value === 'scouts') {
+        return cellValue === 'Геологоразведчик'
+      }
+
+      return false;
+    }
+  }
+};
+```
+
+Событие изменения значений кастомных фильтров можно обработать с помощью колбэка в свойстве `onCustomFiltersUpdate`
+
+#### Реализация компонента кастомного фильтра
+
+Кастомный компонент фильтра получает следующие пропсы:
+
+| Свойство               | Тип                                                               | Описание                                                                          |
+| ---------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| onConfirm              | (filter: { value: CustomFilterValue; isActive: boolean }) => void | Функция для сохранения обновленного значения фильтра и статуса активности фильтра |
+| savedCustomFilterValue | CustomFilterValue                                                 | Значение сохраненного значения фильтра                                            |
+
+Имеется ряд предустановленных кастомных компонентов фильтров:
+
+| Компонент                      | Дополнительные пропсы                                               | Описание                           |
+| ------------------------------ | ------------------------------------------------------------------- | ---------------------------------- |
+| TableCustomFilterRange         | -                                                                   | Фильтрация по значениям "от-до"    |
+| TableCustomFilterRangeGroup    | { items: {name: string, value: any} }                               | Фильтрация по одному из значенений |
+| TableCustomFilterCheckboxGroup | { items: Array<{ name: string, value: any }>; withSearch: boolean } | Фильтрация по нескольким значениям |
+
+В качестве основы для кастомного компонента рекомендуется использовать компонент `TableCustomFilterContainer`, представляющий из себя блок с кнопками подтверждения и сброса фильтра.
+Он принимает в себя следующие пропсы:
+
+| Свойство            | Тип        | Описание                                   |
+| ------------------- | ---------- | ------------------------------------------ |
+| onReset             | () => void | Обработчик нажатия на кнопку подтверждения |
+| onConfirm           | () => void | Обработчик нажатия на кнопку отмены        |
+| title               | string     | Заголовок окна                             |
+| confirmButtonLabel  | string     | Текст на кнопке подтверждения              |
+| resetButtonLabel    | string     | Текст на кнопку сброса                     |
+| resetButtonDisabled | boolean    | Отключена ли кнопка сброса                 |
+| children            | ReactNode  | Вложенные элементы                         |
 
 ### Заглушка
 
@@ -203,6 +298,32 @@ type OnRowHover = ({ id, e }: { id: string | undefined; e: React.MouseEvent }) =
 type LazyLoad = { maxVisibleRows?: number; scrollableEl?: HTMLDivElement / Window; }
 // maxVisibleRows - количество строк
 // scrollableEl - элемент с onScroll listener
+
+type CustomFilterComponentProps = {
+  onConfirm: (value: { value: CustomFilterValue; isActive: boolean }) => void;
+  savedCustomFilterValue: CustomFilterValue;
+  [key: string]: any;
+};
+
+type CustomFilter<T extends TableRow> = {
+  filterer: (value: any, filterValue: CustomFilterValue) => boolean;
+  filterComponent: React.FC<CustomFilterComponentProps>;
+  filterComponentProps?: { [key: string]: any };
+  initialValue?: CustomFilterValue;
+};
+
+type CustomFilters<T extends TableRow> = { [key in RowField<T>]?: CustomFilter<T> };
+
+type CustomSavedFilter<T extends TableRow> = CustomFilter<T> & {
+  value: CustomFilterValue;
+  isActive: boolean;
+};
+
+type CustomSavedFilters<T extends TableRow> = {
+  [field in RowField<T>]?: CustomSavedFilter<T>;
+};
+
+
 ```
 
 | Свойство                                            | Тип или варианты значения                           | По умолчанию                                      | Описание                                             |
@@ -225,6 +346,8 @@ type LazyLoad = { maxVisibleRows?: number; scrollableEl?: HTMLDivElement / Windo
 | `className`                                         | `string`                                            | -                                                 | Дополнительный CSS-класс                             |
 | lazyLoad?                                           | `LazyLoad`                                          | `{ maxVisibleRows: 210; scrollableEl: tableRef }` | Включает виртуальную прокрутку в таблице             |
 | [`onFiltersUpdated`](#колбэк-на-применение-фильтра) | `(filters: { field: string[] }) => void`            | -                                                 | Колбэк на изменение фильтров                         |
+| [`customFilters`](#кастомные-фильтры)               | `CustomFilters`                                     | -                                                 | Кастомные фильтры                                    |
+| [`onFiltersUpdated`]                                | `(customFilters: CustomSavedFilters<T>) => void`    | -                                                 | Колбэк на изменение кастомных фильтров               |
 
 ## Примеры
 
@@ -395,18 +518,18 @@ const orderParametersDefault: Array<OrderOption> = [
 ];
 ```
 
-| Свойство              | Тип или варианты значения           | По умолчанию            | Описание                                           |
-| --------------------- | ------------------------------------| ----------------------- | -------------------------------------------------- |
-| isOpen                | `boolean`                           | -                       | Флаг открытого окна                                |
-| options               | `Option[]`                          | -                       | Список сортируемых полей                           |
-| value                 | `OrderedOption[]`                   | -                       | Список уже отсортированных полей                   |
-| onChange              | `(o: Array<OrderedOption>) => void` | -                       | Изменение сортировки в окне                        |
-| onClose               | `() => void`                        | -                       | Закрытие окна                                      |
-| title?                | `string`                            | 'Умная сортировка'      | Заголовок окна сортировки                          |
-| sortLabel?            | `string`                            | 'Сортировать по'        | Заголовок полей для сортировки                     |
-| sortParametersLabel?  | `string`                            | 'Порядок'               | Заголовок параметра сортировки                     |
-| orderParameters?      | `OrderOption[]`                     | `orderParametersDefault`| Список параметров сортировки                       |
-| className?            | `string`                            | -                       | Дополнительный класс                               |
+| Свойство             | Тип или варианты значения           | По умолчанию             | Описание                         |
+| -------------------- | ----------------------------------- | ------------------------ | -------------------------------- |
+| isOpen               | `boolean`                           | -                        | Флаг открытого окна              |
+| options              | `Option[]`                          | -                        | Список сортируемых полей         |
+| value                | `OrderedOption[]`                   | -                        | Список уже отсортированных полей |
+| onChange             | `(o: Array<OrderedOption>) => void` | -                        | Изменение сортировки в окне      |
+| onClose              | `() => void`                        | -                        | Закрытие окна                    |
+| title?               | `string`                            | 'Умная сортировка'       | Заголовок окна сортировки        |
+| sortLabel?           | `string`                            | 'Сортировать по'         | Заголовок полей для сортировки   |
+| sortParametersLabel? | `string`                            | 'Порядок'                | Заголовок параметра сортировки   |
+| orderParameters?     | `OrderOption[]`                     | `orderParametersDefault` | Список параметров сортировки     |
+| className?           | `string`                            | -                        | Дополнительный класс             |
 
 #### Пример использования
 
@@ -427,10 +550,13 @@ const sorters = orderedOptions.map((option) =>
   option.orderValue === 'asc' ? option.optionValue : `-${option.optionValue}`,
 );
 
-const columns = orderedOptions.length > 0 ? tableData.columns.map((column) => ({
-  ...column,
-  sortable: false,
-})) : tableData.columns;
+const columns =
+  orderedOptions.length > 0
+    ? tableData.columns.map((column) => ({
+        ...column,
+        sortable: false,
+      }))
+    : tableData.columns;
 
 const rows = [...tableData.rows].sort(smartSorter(sorters));
 

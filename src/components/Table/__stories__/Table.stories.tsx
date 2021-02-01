@@ -5,6 +5,7 @@ import { boolean, number, object, select, text } from '@storybook/addon-knobs';
 
 import {
   generateData,
+  rangeFilterer,
   tableData,
   tableWithBagdeData,
   tableWithMergedCellsData,
@@ -21,6 +22,9 @@ import { Checkbox } from '../../Checkbox/Checkbox';
 import { OrderedOption, smartSort, SmartSorting } from '../../SmartSorting/SmartSorting';
 import { Text } from '../../Text/Text';
 import { verticalAligns } from '../Cell/TableCell';
+import { TableCustomFilterCheckboxGroup } from '../CustomFilterCheckboxGroup/TableCustomFilterCheckboxGroup';
+import { TableCustomFilterChoiceGroup } from '../CustomFilterChoiceGroup/TableCustomFilterChoiceGroup';
+import { TableCustomFilterRange } from '../CustomFilterRange/TableCustomFilterRange';
 import { Filters } from '../filtering';
 import { Props, sizes, Table, TableColumn, TableRow, zebraStriped } from '../Table';
 
@@ -306,6 +310,67 @@ export const WithSmartSorting = createStory(
   },
   {
     name: 'с умной сортировкой',
+  },
+);
+
+export const withCustomFilters = createStory(
+  () => (
+    <Table
+      {...getKnobs()}
+      customFilters={{
+        field: {
+          filterComponent: TableCustomFilterCheckboxGroup,
+          filterComponentProps: {
+            withSearch: true,
+            items: [
+              { name: 'Приобское', value: 'Приобское' },
+              { name: 'Русское газонефтяное', value: 'Русское газонефтяное' },
+              {
+                name: 'Уренгойское газонефтеконденсат­ное',
+                value: 'Уренгойское газонефтеконденсат­ное',
+              },
+              { name: 'Красноленинская группа', value: 'Красноленинская группа' },
+              { name: 'Великое', value: 'Великое' },
+            ],
+          },
+          filterer: (cellValue, filterValues: Array<{ value: string; name: string }>) => {
+            return filterValues.some(
+              (filterValue) => filterValue && filterValue.value === cellValue,
+            );
+          },
+        },
+
+        year: {
+          filterComponent: TableCustomFilterRange,
+          filterer: rangeFilterer,
+          initialValue: { min: 1990, max: 2000 },
+        },
+
+        type: {
+          filterComponent: TableCustomFilterChoiceGroup,
+          filterer: (cellValue, filterValue: { name: string; value: string }) => {
+            if (filterValue.value === 'combined') {
+              return cellValue === 'Комбинированное';
+            }
+
+            if (filterValue.value === 'notCombined') {
+              return cellValue !== 'Комбинированное';
+            }
+
+            return false;
+          },
+          filterComponentProps: {
+            items: [
+              { name: 'Комбинированное', value: 'combined' },
+              { name: 'Кроме комбинированного', value: 'notCombined' },
+            ],
+          },
+        },
+      }}
+    />
+  ),
+  {
+    name: 'с кастомными фильтрами',
   },
 );
 

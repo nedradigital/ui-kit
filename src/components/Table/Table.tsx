@@ -16,6 +16,13 @@ import { TableHeader } from './Header/TableHeader';
 import { TableResizer } from './Resizer/TableResizer';
 import { TableSelectedOptionsList } from './SelectedOptionsList/TableSelectedOptionsList';
 import {
+  CustomFilters,
+  CustomSavedFilters,
+  fieldCustomFilterPresent,
+  isSomeCustomFilterActive,
+  useCustomFilters,
+} from './customFiltering';
+import {
   fieldFiltersPresent,
   FieldSelectedValues,
   Filters,
@@ -115,6 +122,8 @@ export type Props<T extends TableRow> = {
   onRowHover?: onRowHover;
   lazyLoad?: LazyLoad;
   onFiltersUpdated?: (filters: SelectedFilters) => void;
+  customFilters?: CustomFilters<T>;
+  onCustomFiltersUpdate?: (filters: CustomSavedFilters<T>) => void;
 };
 
 export type SortingState<T extends TableRow> = {
@@ -166,6 +175,8 @@ export const Table = <T extends TableRow>({
   lazyLoad,
   onSortBy,
   onFiltersUpdated,
+  customFilters,
+  onCustomFiltersUpdate,
 }: Props<T>): React.ReactElement => {
   const {
     headers,
@@ -200,6 +211,12 @@ export const Table = <T extends TableRow>({
     removeOneSelectedFilter,
     removeAllSelectedFilters,
   } = useSelectedFilters(filters, onFiltersUpdated);
+
+  const { savedCustomFilters, updateCustomFilterValue } = useCustomFilters(
+    customFilters,
+    onCustomFiltersUpdate,
+  );
+
   /*
     Подписываемся на изменения размеров таблицы, но не используем значения из
     хука так как нам нужна ширина и высота таблицы без размера скролла. Этот хук
@@ -353,7 +370,10 @@ export const Table = <T extends TableRow>({
 
       return {
         ...column,
-        filterable: Boolean(filters && fieldFiltersPresent(filters, column.accessor)),
+        filterable: Boolean(
+          (filters && fieldFiltersPresent(filters, column.accessor)) ||
+            fieldCustomFilterPresent(savedCustomFilters, column.accessor),
+        ),
         isSortingActive: isSortedByColumn(column),
         isFilterActive,
         isResized,
@@ -370,10 +390,17 @@ export const Table = <T extends TableRow>({
   );
 
   const sortedTableData = sortingData(rows, sorting, onSortBy);
+
   const filteredData =
-    !filters || !isSelectedFiltersPresent(selectedFilters)
-      ? sortedTableData
-      : filterTableData({ data: sortedTableData, filters, selectedFilters });
+    (filters && isSelectedFiltersPresent(selectedFilters)) ||
+    (savedCustomFilters && isSomeCustomFilterActive(savedCustomFilters))
+      ? filterTableData({
+          data: sortedTableData,
+          filters: filters || [],
+          selectedFilters,
+          savedCustomFilters,
+        })
+      : sortedTableData;
 
   const { maxVisibleRows = 210, scrollableEl = tableRef.current } = lazyLoad || {};
 
@@ -502,6 +529,8 @@ export const Table = <T extends TableRow>({
         selectedFilters={selectedFilters}
         showHorizontalCellShadow={showHorizontalCellShadow}
         borderBetweenColumns={borderBetweenColumns}
+        savedCustomFilters={savedCustomFilters}
+        customFiltersConfirmHandler={updateCustomFilterValue}
       />
       {filters && isSelectedFiltersPresent(selectedFilters) && (
         <div className={cnTable('RowWithoutCells')}>
