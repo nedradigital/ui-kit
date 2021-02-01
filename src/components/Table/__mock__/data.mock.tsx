@@ -1,7 +1,18 @@
 import React from 'react';
 
+import { isDefined } from '../../../utils/type-guards';
 import { Badge } from '../../Badge/Badge';
 import { Props as TableProps, TableFilters as Filters, TableRow } from '../Table';
+
+export const rangeFilterer = (
+  value: number | string,
+  filterValue: { min: number | string; max: number | string },
+): boolean => {
+  const minValue = isDefined(filterValue.min) ? filterValue.min : -Infinity;
+  const maxValue = isDefined(filterValue.max) ? filterValue.max : Infinity;
+
+  return Number(value) <= Number(maxValue) && Number(value) >= Number(minValue);
+};
 
 export const rows = [
   {

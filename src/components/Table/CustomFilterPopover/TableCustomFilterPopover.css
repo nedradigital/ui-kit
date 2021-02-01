@@ -1,0 +1,21 @@
+.TableCustomFilterPopover {
+  &-Button {
+    z-index: 1;
+    opacity: 0;
+    transition: opacity var(--show-transition);
+
+    &:hover {
+      opacity: 1;
+    }
+
+    &_isOpened {
+      color: var(--color-typo-link);
+      opacity: 1;
+    }
+
+    &_isActive {
+      color: var(--color-typo-link);
+      opacity: 1;
+    }
+  }
+}
