@@ -13,12 +13,14 @@ const defaultValue: Item = { name: 'Все', value: undefined };
 
 type Props = CustomFilterComponentProps & {
   items?: Item[];
+  title?: string;
 };
 
 export const TableCustomFilterChoiceGroup: React.FC<Props> = ({
   onConfirm,
   items = [],
   savedCustomFilterValue,
+  title = 'Отобразить значения из списка',
 }) => {
   const [value, setValue] = useState<Item | null>(savedCustomFilterValue || null);
 
@@ -38,7 +40,7 @@ export const TableCustomFilterChoiceGroup: React.FC<Props> = ({
 
   return (
     <TableCustomFilterContainer
-      title="Отобразить значения из списка"
+      title={title}
       onReset={resetHandler}
       onConfirm={confirmHandler}
       resetButtonDisabled={value?.value === undefined}

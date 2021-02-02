@@ -10,9 +10,15 @@ import { CustomFilterComponentProps } from '../customFiltering';
 
 const customFilterRange = cn('TableCustomFilterRange');
 
-type Props = CustomFilterComponentProps;
+type Props = CustomFilterComponentProps & {
+  title?: string;
+};
 
-export const TableCustomFilterRange: React.FC<Props> = ({ onConfirm, savedCustomFilterValue }) => {
+export const TableCustomFilterRange: React.FC<Props> = ({
+  onConfirm,
+  savedCustomFilterValue,
+  title = 'Фильтровать по диапазону значений',
+}) => {
   const [minValue, setMinValue] = useState<string | undefined | null>(savedCustomFilterValue.min);
   const [maxValue, setMaxValue] = useState<string | undefined | null>(savedCustomFilterValue.max);
 
@@ -33,7 +39,7 @@ export const TableCustomFilterRange: React.FC<Props> = ({ onConfirm, savedCustom
 
   return (
     <TableCustomFilterContainer
-      title="Фильтровать по диапазону значений"
+      title={title}
       onReset={resetHandler}
       onConfirm={confirmHandler}
       resetButtonDisabled={!isNotNil(minValue) && !isNotNil(maxValue)}

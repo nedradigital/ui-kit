@@ -20,6 +20,7 @@ type Item = {
 type Props = CustomFilterComponentProps & {
   items?: Item[];
   withSearch?: boolean;
+  title?: string;
 };
 
 export const TableCustomFilterCheckboxGroup: React.FC<Props> = ({
@@ -27,6 +28,7 @@ export const TableCustomFilterCheckboxGroup: React.FC<Props> = ({
   withSearch = false,
   onConfirm,
   savedCustomFilterValue,
+  title = 'Фильтровать по выбранным из списка',
 }) => {
   const [searchValue, setSearchValue] = useState<string | null>(null);
   const [checkboxGroupValue, setCheckboxGroupValue] = useState<Item[] | null>(
@@ -63,7 +65,7 @@ export const TableCustomFilterCheckboxGroup: React.FC<Props> = ({
 
   return (
     <TableCustomFilterContainer
-      title="Фильтровать по выбранным из списка"
+      title={title}
       onReset={resetHandler}
       onConfirm={confirmHandler}
       resetButtonDisabled={allSelected}
