@@ -1,12 +1,13 @@
 import './Breadcrumbs.css';
 
-import React, { Fragment, useMemo } from 'react';
+import React, { useMemo } from 'react';
 
 import { IconProps, IconPropSize } from '../../icons/Icon/Icon';
 import { IconArrowRight } from '../../icons/IconArrowRight/IconArrowRight';
 import { cn } from '../../utils/bem';
 import { getSizeByMap } from '../../utils/getSizeByMap';
 import { PropsWithHTMLAttributesAndRef } from '../../utils/types/PropsWithHTMLAttributes';
+import { Button } from '../Button/Button';
 
 export const breadcrumbPropSize = ['m', 'xs', 's', 'l'] as const;
 export type BreadcrumbPropSize = typeof breadcrumbPropSize[number];
@@ -17,12 +18,12 @@ export const cnBreadcrumbs = cn('Breadcrumbs');
 const sizeMap: Record<BreadcrumbPropSize, IconPropSize> = {
   xs: 'xs',
   s: 'xs',
-  m: 's',
+  m: 'xs',
   l: 'm',
 };
 
 export type BreadcrumbsPropGetLabel<ITEM> = (item: ITEM) => string | React.ReactNode;
-export type BreadcrumbsPropGetIsActive<ITEM> = (item: ITEM) => boolean | undefined;
+export type BreadcrumbsPropGetIsActive<ITEM> = (item: ITEM) => boolean;
 export type BreadcrumbsPropGetLink<ITEM> = (item: ITEM) => string;
 export type BreadcrumbsPropGetIcon<ITEM> = (item: ITEM) => React.FC<IconProps> | undefined;
 
@@ -40,7 +41,7 @@ export type BreadcrumbsProps<ITEM> = {
 };
 
 type Breadcrumbs = <ITEM>(
-  props: PropsWithHTMLAttributesAndRef<BreadcrumbsProps<ITEM>, HTMLDivElement>,
+  props: PropsWithHTMLAttributesAndRef<BreadcrumbsProps<ITEM>, HTMLUListElement>,
 ) => React.ReactElement | null;
 
 export const Breadcrumbs: Breadcrumbs = React.forwardRef((props, ref) => {
@@ -58,7 +59,6 @@ export const Breadcrumbs: Breadcrumbs = React.forwardRef((props, ref) => {
     ...restProps
   } = props;
 
-  // type Pages = typeof pages;
   const iconSize = getSizeByMap(sizeMap, size);
 
   const { head, tail, rest } = useMemo(() => {
@@ -93,40 +93,37 @@ export const Breadcrumbs: Breadcrumbs = React.forwardRef((props, ref) => {
       const isActive = getIsActive?.(page);
 
       return (
-        <Fragment key={`${label}:${link}`}>
+        <li key={`${label}:${link}`} className={cnBreadcrumbs('Item')}>
           {!isFirst && delimiter}
           <a
             className={cnBreadcrumbs('Link', { active: isActive })}
             onClick={(e) => onClick?.(page, e)}
             href={link}
           >
-            {Icon && (
-              <Icon
-                className={cnBreadcrumbs('Icon', {
-                  onlyIcon: onlyIconRoot && isFirst,
-                  size: iconSize,
-                })}
-                size={iconSize}
-              />
-            )}
+            {Icon &&
+              (onlyIconRoot && isFirst ? (
+                <Button view="clear" onlyIcon iconLeft={Icon} size={iconSize} />
+              ) : (
+                <Icon className={cnBreadcrumbs('Icon')} size={iconSize} />
+              ))}
             {(!isFirst || !onlyIconRoot) && <span className={cnBreadcrumbs('Label')}>{label}</span>}
           </a>
-        </Fragment>
+        </li>
       );
     });
 
   return (
-    <div className={cnBreadcrumbs({ size }, [className])} ref={ref} {...restProps}>
+    <ul className={cnBreadcrumbs({ size }, [className])} ref={ref} {...restProps}>
       {renderPages(head, true)}
       {maxCount && rest.length > 1 ? (
-        <>
+        <li className={cnBreadcrumbs('Item')}>
           {delimiter}
           <span className={cnBreadcrumbs('More')}>...</span>
-        </>
+        </li>
       ) : (
         renderPages(rest)
       )}
       {renderPages(tail)}
-    </div>
+    </ul>
   );
 });

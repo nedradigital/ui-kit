@@ -6,7 +6,7 @@ import { useComponentSize } from '../../hooks/useComponentSize/useComponentSize'
 import { IconSortDown } from '../../icons/IconSortDown/IconSortDown';
 import { IconSortUp } from '../../icons/IconSortUp/IconSortUp';
 import { IconUnsort } from '../../icons/IconUnsort/IconUnsort';
-import { sortBy, updateAt } from '../../utils/array';
+import { sortBy as sortByDefault, updateAt } from '../../utils/array';
 import { cn } from '../../utils/bem';
 import { isNotNil } from '../../utils/type-guards';
 import { Text } from '../Text/Text';
@@ -16,12 +16,21 @@ import { TableHeader } from './Header/TableHeader';
 import { TableResizer } from './Resizer/TableResizer';
 import { TableSelectedOptionsList } from './SelectedOptionsList/TableSelectedOptionsList';
 import {
+  CustomFilters,
+  CustomSavedFilters,
+  fieldCustomFilterPresent,
+  isSomeCustomFilterActive,
+  useCustomFilters,
+} from './customFiltering';
+import {
   fieldFiltersPresent,
   FieldSelectedValues,
   Filters,
   filterTableData,
   getSelectedFiltersList,
   isSelectedFiltersPresent,
+  onSortBy,
+  SelectedFilters,
   useSelectedFilters,
 } from './filtering';
 import {
@@ -103,6 +112,7 @@ export type Props<T extends TableRow> = {
   columns: TableColumn<T>[];
   rows: T[];
   filters?: Filters<T>;
+  onSortBy?: onSortBy<T>;
   size?: Size;
   stickyHeader?: boolean;
   stickyColumns?: number;
@@ -116,6 +126,9 @@ export type Props<T extends TableRow> = {
   className?: string;
   onRowHover?: onRowHover;
   lazyLoad?: LazyLoad;
+  onFiltersUpdated?: (filters: SelectedFilters) => void;
+  customFilters?: CustomFilters<T>;
+  onCustomFiltersUpdate?: (filters: CustomSavedFilters<T>) => void;
 };
 
 export type ColumnMetaData = {
@@ -137,6 +150,22 @@ export type SortingState<T extends TableRow> = {
 
 const getColumnSortByField = <T extends TableRow>(column: TableColumn<T>): keyof T =>
   (column.sortable && column.sortByField) || column.accessor!;
+
+const sortingData = <T extends TableRow>(
+  rows: T[],
+  sorting: SortingState<T>,
+  onSortBy?: onSortBy<T>,
+) => {
+  if (onSortBy) {
+    return rows;
+  }
+
+  if (!sorting) {
+    return rows;
+  }
+
+  return sortByDefault(rows, sorting.by, sorting.order, sorting.sortFn);
+};
 
 const defaultEmptyRowsPlaceholder = (
   <Text as="span" view="primary" size="s" lineHeight="s">
@@ -161,6 +190,10 @@ export const Table = <T extends TableRow>({
   className,
   onRowHover,
   lazyLoad,
+  onSortBy,
+  onFiltersUpdated,
+  customFilters,
+  onCustomFiltersUpdate,
 }: Props<T>): React.ReactElement => {
   const {
     headers,
@@ -174,9 +207,15 @@ export const Table = <T extends TableRow>({
     headers[0][stickyColumns - 1]?.position.gridIndex! +
     (headers[0][stickyColumns - 1]?.position.colSpan || 1);
 
+  const getColumnsWidth = () => lowHeaders.map((column: TableColumn<T>) => column.width);
   const [resizedColumnWidths, setResizedColumnWidths] = React.useState<ColumnWidth[]>(
-    lowHeaders.map((column: TableColumn<T>) => column.width),
+    getColumnsWidth(),
   );
+
+  React.useEffect(() => {
+    setResizedColumnWidths(getColumnsWidth());
+  }, [lowHeaders.length]);
+
   const [initialColumnWidths, setInitialColumnWidths] = React.useState<number[]>([]);
   const [sorting, setSorting] = React.useState<SortingState<T>>(null);
   const [visibleFilter, setVisibleFilter] = React.useState<string | null>(null);
@@ -188,7 +227,13 @@ export const Table = <T extends TableRow>({
     updateSelectedFilters,
     removeOneSelectedFilter,
     removeAllSelectedFilters,
-  } = useSelectedFilters(filters);
+  } = useSelectedFilters(filters, onFiltersUpdated);
+
+  const { savedCustomFilters, updateCustomFilterValue } = useCustomFilters(
+    customFilters,
+    onCustomFiltersUpdate,
+  );
+
   /*
     Подписываемся на изменения размеров таблицы, но не используем значения из
     хука так как нам нужна ширина и высота таблицы без размера скролла. Этот хук
@@ -237,13 +282,19 @@ export const Table = <T extends TableRow>({
   };
 
   const handleSortClick = (column: TableColumn<T>): void => {
-    setSorting(
-      getNewSorting(
-        sorting,
-        getColumnSortByField(column),
-        (column.sortable && column?.sortFn) || undefined,
-      ),
+    const newSorting = getNewSorting(
+      sorting,
+      getColumnSortByField(column),
+      (column.sortable && column?.sortFn) || undefined,
     );
+    const sortProps = newSorting
+      ? {
+          sortingBy: newSorting.by,
+          sortOrder: newSorting.order,
+        }
+      : null;
+    onSortBy && onSortBy(sortProps);
+    setSorting(newSorting);
   };
 
   const handleFilterTogglerClick = (id: string) => (): void => {
@@ -340,7 +391,10 @@ export const Table = <T extends TableRow>({
 
       return {
         ...column,
-        filterable: Boolean(filters && fieldFiltersPresent(filters, column.accessor!)),
+        filterable: Boolean(
+          (filters && fieldFiltersPresent(filters, column.accessor as string)) ||
+            fieldCustomFilterPresent(savedCustomFilters, column.accessor as keyof T),
+        ),
         isSortingActive: isSortedByColumn(column),
         isFilterActive,
         isResized,
@@ -356,11 +410,18 @@ export const Table = <T extends TableRow>({
     flattenedHeaders,
   );
 
-  const tableData = sorting ? sortBy(rows, sorting.by, sorting.order, sorting.sortFn) : rows;
+  const sortedTableData = sortingData(rows, sorting, onSortBy);
+
   const filteredData =
-    !filters || !isSelectedFiltersPresent(selectedFilters)
-      ? tableData
-      : filterTableData({ data: tableData, filters, selectedFilters });
+    (filters && isSelectedFiltersPresent(selectedFilters)) ||
+    (savedCustomFilters && isSomeCustomFilterActive(savedCustomFilters))
+      ? filterTableData({
+          data: sortedTableData,
+          filters: filters || [],
+          selectedFilters,
+          savedCustomFilters,
+        })
+      : sortedTableData;
 
   const { maxVisibleRows = 210, scrollableEl = tableRef.current } = lazyLoad || {};
 
@@ -488,6 +549,8 @@ export const Table = <T extends TableRow>({
         selectedFilters={selectedFilters}
         showHorizontalCellShadow={showHorizontalCellShadow}
         borderBetweenColumns={borderBetweenColumns}
+        savedCustomFilters={savedCustomFilters}
+        customFiltersConfirmHandler={updateCustomFilterValue}
       />
       {filters && isSelectedFiltersPresent(selectedFilters) && (
         <div className={cnTable('RowWithoutCells')}>

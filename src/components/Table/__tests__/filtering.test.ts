@@ -102,6 +102,7 @@ describe('filterTableData', () => {
         data: DATA,
         filters: FILTERS,
         selectedFilters: {},
+        savedCustomFilters: {},
       }),
     ).toEqual(DATA);
   });
@@ -114,6 +115,7 @@ describe('filterTableData', () => {
         selectedFilters: {
           count: ['countEqual0'],
         },
+        savedCustomFilters: {},
       }),
     ).toEqual([]);
   });
@@ -126,6 +128,7 @@ describe('filterTableData', () => {
         selectedFilters: {
           count: ['countLess100'],
         },
+        savedCustomFilters: {},
       }),
     ).toEqual([DATA[2]]);
   });
@@ -138,6 +141,7 @@ describe('filterTableData', () => {
         selectedFilters: {
           count: ['countLess100', 'countMore100'],
         },
+        savedCustomFilters: {},
       }),
     ).toEqual([DATA[0], DATA[2]]);
   });
@@ -151,6 +155,7 @@ describe('filterTableData', () => {
           count: ['countEqual100'],
           price: ['priceMore100'],
         },
+        savedCustomFilters: {},
       }),
     ).toEqual([DATA[1]]);
   });
@@ -163,6 +168,7 @@ describe('filterTableData', () => {
         selectedFilters: {
           count: ['UNDEFINED'],
         },
+        savedCustomFilters: {},
       }),
     ).toEqual([]);
   });

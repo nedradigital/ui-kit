@@ -43,7 +43,7 @@ const initialProps = {
   getLabel: (page: Page) => page.label,
   getLink: (page: Page) => page.link,
   getIcon: (page: Page) => page.icon,
-  getIsActive: (page: Page) => page.isActive,
+  getIsActive: (page: Page) => !!page.isActive,
   onClick: (page: Page, e: React.MouseEvent) => {
     e.preventDefault();
     console.log(page.link, e);

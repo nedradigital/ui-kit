@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { isDefined } from '../../utils/type-guards';
 
+import { CustomSavedFilters } from './customFiltering';
 import { TableColumn, TableRow, ValueOf } from './Table';
 
 export type Filters<T extends TableRow> = ValueOf<
@@ -104,23 +105,43 @@ export const getSelectedFiltersList = <T extends TableRow>({
   }, []);
 };
 
+/**
+ *
+ * Фильтрация данных как по старым фильтрам, так и по новым кастомным
+ */
 export const filterTableData = <T extends TableRow>({
   data,
   filters,
   selectedFilters,
+  savedCustomFilters,
 }: {
   data: T[];
   filters: Filters<T>;
   selectedFilters: SelectedFilters;
+  savedCustomFilters: CustomSavedFilters<T>;
 }): T[] => {
   const mutableFilteredData = [];
 
   for (const row of data) {
-    const columnNames = Object.keys(row);
+    const columnNames = Object.keys(row) as (keyof T)[];
     let rowIsValid = true;
 
     for (const columnName of columnNames) {
-      const columnFilters = selectedFilters[columnName];
+      const columnFilters = selectedFilters[columnName as string];
+      const columnCustomFilter = savedCustomFilters[columnName];
+
+      if (columnCustomFilter && columnCustomFilter.isActive) {
+        let cellIsValid = false;
+        const cellContent = row[columnName];
+
+        if (columnCustomFilter.filterer(cellContent, columnCustomFilter.value)) {
+          cellIsValid = true;
+        }
+
+        if (!cellIsValid) {
+          rowIsValid = false;
+        }
+      }
 
       if (columnFilters && columnFilters.length) {
         let cellIsValid = false;
@@ -156,6 +177,7 @@ export const filterTableData = <T extends TableRow>({
 /* istanbul ignore next */
 export const useSelectedFilters = <T extends TableRow>(
   filters?: Filters<T>,
+  onFiltersUpdated?: (filters: SelectedFilters) => void,
 ): {
   selectedFilters: SelectedFilters;
   updateSelectedFilters: (field: string, tooltipSelectedFilters: FieldSelectedValues) => void;
@@ -170,10 +192,13 @@ export const useSelectedFilters = <T extends TableRow>(
     field: string,
     tooltipSelectedFilters: FieldSelectedValues,
   ): void => {
-    setSelectedFilters({
+    const newSelectedFilters = {
       ...selectedFilters,
       [field]: [...tooltipSelectedFilters],
-    });
+    };
+
+    setSelectedFilters(newSelectedFilters);
+    onFiltersUpdated && onFiltersUpdated(newSelectedFilters);
   };
 
   const removeOneSelectedFilter = (availableFilters: Filters<T>, filter: string): void => {
