@@ -10,7 +10,7 @@ import { TableCustomFilterPopover } from '../CustomFilterPopover/TableCustomFilt
 import { FieldSelectedValues, Filters, getOptionsForFilters, SelectedFilters } from '../filtering';
 import { TableFilterTooltip } from '../FilterTooltip/TableFilterTooltip';
 import { Header } from '../helpers';
-import { ColumnMetaData, RowField, TableColumn, TableRow } from '../Table';
+import { ColumnMetaData, TableColumn, TableRow } from '../Table';
 
 const cnTableHeader = cn('TableHeader');
 
@@ -38,7 +38,7 @@ type Props<T extends TableRow> = {
   selectedFilters: SelectedFilters;
   savedCustomFilters: CustomSavedFilters<T>;
   customFiltersConfirmHandler: (
-    field: RowField<T>,
+    field: string,
     filterValue: { value: CustomFilterValue; isActive: boolean },
   ) => CustomSavedFilters<T>;
   showHorizontalCellShadow: boolean;
@@ -98,16 +98,16 @@ export const TableHeader = <T extends TableRow>({
   ): React.ReactNode => {
     const isOpen = visibleFilter === column.accessor;
 
-    if (column.filterable && savedCustomFilters && savedCustomFilters[column.accessor]) {
-      const FilterComponent = savedCustomFilters[column.accessor]?.filterComponent;
-      const filterComponentProps = savedCustomFilters[column.accessor]?.filterComponentProps ?? {};
+    if (column.filterable && savedCustomFilters && savedCustomFilters[column.accessor!]) {
+      const FilterComponent = savedCustomFilters[column.accessor!]?.filterComponent;
+      const filterComponentProps = savedCustomFilters[column.accessor!]?.filterComponentProps ?? {};
 
       const handleCustomFilterSave = (filterValue: {
         value: CustomFilterValue;
         isActive: boolean;
       }): CustomSavedFilters<T> => {
-        const savedFilters = customFiltersConfirmHandler(column.accessor, filterValue);
-        handleFilterTogglerClick(column.accessor)();
+        const savedFilters = customFiltersConfirmHandler(column.accessor!, filterValue);
+        handleFilterTogglerClick(column.accessor!)();
 
         return savedFilters;
       };
@@ -115,16 +115,16 @@ export const TableHeader = <T extends TableRow>({
       if (FilterComponent) {
         return (
           <TableCustomFilterPopover
-            isActive={Boolean(savedCustomFilters[column.accessor]?.isActive)}
+            isActive={Boolean(savedCustomFilters[column.accessor!]?.isActive)}
             columnRef={{ current: columnEl }}
             isOpened={isOpen}
             className={cnTableHeader('Icon', { type: 'filter' })}
-            onToggle={handleFilterTogglerClick(column.accessor)}
+            onToggle={handleFilterTogglerClick(column.accessor!)}
           >
             <FilterComponent
               {...filterComponentProps}
               onConfirm={handleCustomFilterSave}
-              savedCustomFilterValue={savedCustomFilters[column.accessor]?.value}
+              savedCustomFilterValue={savedCustomFilters[column.accessor!]?.value}
             />
           </TableCustomFilterPopover>
         );
@@ -133,12 +133,12 @@ export const TableHeader = <T extends TableRow>({
 
     return filters && column.filterable ? (
       <TableFilterTooltip
-        field={column.accessor}
+        field={column.accessor as string}
         isOpened={visibleFilter === column.accessor}
-        options={getOptionsForFilters(filters, column.accessor)}
-        values={selectedFilters[column.accessor] || []}
+        options={getOptionsForFilters(filters, column.accessor!)}
+        values={selectedFilters[column.accessor!] || []}
         onChange={handleTooltipSave}
-        onToggle={handleFilterTogglerClick(column.accessor)}
+        onToggle={handleFilterTogglerClick(column.accessor!)}
         className={cnTableHeader('Icon', { type: 'filter' })}
       />
     ) : null;
@@ -188,7 +188,8 @@ export const TableHeader = <T extends TableRow>({
               })}
               showVerticalShadow={
                 showVerticalCellShadow &&
-                column?.position!.gridIndex + (column?.position!.colSpan || 1) === stickyColumnsGrid
+                column?.position!.gridIndex! + (column?.position!.colSpan || 1) ===
+                  stickyColumnsGrid
               }
             >
               {column.title}

@@ -7,6 +7,7 @@ import {
   generateData,
   rangeFilterer,
   tableData,
+  tableDataWithRenderFn,
   tableWithBagdeData,
   tableWithMergedCellsData,
   tableWithMultiLevelHeadersData,
@@ -34,7 +35,7 @@ import mdx from './Table.mdx';
 
 const cnTableStories = cn('TableStories');
 
-const defaultProps = {
+const defaultProps: Props<typeof tableData.rows[number]> = {
   columns: tableData.columns,
   rows: tableData.rows,
   filters: tableData.filters,
@@ -44,18 +45,18 @@ const defaultProps = {
   stickyColumns: 0,
   stickyHeader: false,
   verticalAlign: 'top',
-  zebraStriped: '',
-} as const;
+  zebraStriped: undefined,
+};
 
 const getSizeKnob = () => select('size', sizes, 'l');
-const getFiltersKnob = (filters?: Filters<TableRow>): Filters<TableRow> | undefined => {
+const getFiltersKnob = <T extends TableRow>(filters?: Filters<T>): Filters<T> | undefined => {
   const isFilterable = boolean('filterable', true);
 
   return isFilterable ? filters : undefined;
 };
 
-const getKnobs = (replacedProps?: Partial<Props<TableRow>>): Props<TableRow> => {
-  const props = { ...defaultProps, ...replacedProps };
+const getKnobs = <T extends TableRow>(replacedProps?: Partial<Props<T>>): Props<T> => {
+  const props = { ...defaultProps, ...replacedProps } as Props<T>;
 
   const zebraStripedProp = select('zebraStriped', ['', ...zebraStriped], props.zebraStriped);
 
@@ -64,12 +65,12 @@ const getKnobs = (replacedProps?: Partial<Props<TableRow>>): Props<TableRow> => 
     rows: object('rows', props.rows),
     filters: getFiltersKnob(props.filters),
     size: getSizeKnob(),
-    borderBetweenColumns: boolean('borderBetweenColumns', props.borderBetweenColumns),
-    borderBetweenRows: boolean('borderBetweenRows', props.borderBetweenRows),
-    isResizable: boolean('isResizable', props.isResizable),
+    borderBetweenColumns: boolean('borderBetweenColumns', props.borderBetweenColumns!),
+    borderBetweenRows: boolean('borderBetweenRows', props.borderBetweenRows!),
+    isResizable: boolean('isResizable', props.isResizable!),
     zebraStriped: zebraStripedProp === '' ? undefined : zebraStripedProp,
-    stickyColumns: number('stickyColumns', props.stickyColumns),
-    stickyHeader: boolean('stickyHeader', props.stickyHeader),
+    stickyColumns: number('stickyColumns', props.stickyColumns!),
+    stickyHeader: boolean('stickyHeader', props.stickyHeader!),
     emptyRowsPlaceholder: text('emptyRowsPlaceholder', '') || undefined,
     verticalAlign: select('verticalAlign', verticalAligns, props.verticalAlign),
   };
@@ -79,8 +80,12 @@ export const Interactive = createStory(() => <Table {...getKnobs()} />, {
   name: 'обычная',
 });
 
+export const CustomRows = createStory(() => <Table {...getKnobs(tableDataWithRenderFn)} />, {
+  name: 'рендер ячеек',
+});
+
 export const WithMultiLevelHeaders = createStory(
-  () => <Table {...getKnobs(tableWithMultiLevelHeadersData as Partial<Props<TableRow>>)} />,
+  () => <Table {...getKnobs(tableWithMultiLevelHeadersData)} />,
   {
     name: 'с многоуровневым заголовком',
   },
@@ -172,9 +177,9 @@ const WithCheckboxHeaderContent = (): JSX.Element => {
   );
 };
 
-const WithOnRowHoverContent = (): JSX.Element => {
+const WithOnRowHoverContent = <T extends TableRow>(): JSX.Element => {
   const [hoveredRow, setHoveredRow] = React.useState<string | undefined>(undefined);
-  const rows: Array<TableRow> = tableData.rows.map((row) => ({
+  const rows = tableData.rows.map((row) => ({
     ...row,
     button: (
       <Button
@@ -187,7 +192,7 @@ const WithOnRowHoverContent = (): JSX.Element => {
     ),
   }));
 
-  const columns: Array<TableColumn<TableRow>> = [
+  const columns: Array<TableColumn<typeof rows[number]>> = [
     {
       title: 'Появится кнопка при наведении',
       accessor: 'button',
@@ -199,7 +204,7 @@ const WithOnRowHoverContent = (): JSX.Element => {
 
   return (
     <Table
-      {...getKnobs()}
+      {...getKnobs<typeof rows[number]>()}
       columns={columns}
       rows={rows}
       onRowHover={({ id }) => setHoveredRow(id)}
@@ -274,10 +279,13 @@ export const WithSmartSorting = createStory(
 
     const columns =
       orderedOptions.length > 0
-        ? tableData.columns.map((column) => ({
-            ...column,
-            sortable: false,
-          }))
+        ? tableData.columns.map((column) => {
+            const col = { ...column };
+            if (column.accessor) {
+              col.sortable = false;
+            }
+            return col;
+          })
         : tableData.columns;
 
     const rows = [...tableData.rows].sort(smartSort(sorters));
@@ -316,7 +324,7 @@ export const WithSmartSorting = createStory(
 export const withCustomFilters = createStory(
   () => (
     <Table
-      {...getKnobs()}
+      {...getKnobs(tableData)}
       customFilters={{
         field: {
           filterComponent: TableCustomFilterCheckboxGroup,
@@ -333,7 +341,7 @@ export const withCustomFilters = createStory(
               { name: 'Великое', value: 'Великое' },
             ],
           },
-          filterer: (cellValue, filterValues: Array<{ value: string; name: string }>) => {
+          filterer: (cellValue: string, filterValues: Array<{ value: string; name: string }>) => {
             return filterValues.some(
               (filterValue) => filterValue && filterValue.value === cellValue,
             );
@@ -348,7 +356,7 @@ export const withCustomFilters = createStory(
 
         type: {
           filterComponent: TableCustomFilterChoiceGroup,
-          filterer: (cellValue, filterValue: { name: string; value: string }) => {
+          filterer: (cellValue: string, filterValue: { name: string; value: string }) => {
             if (filterValue.value === 'combined') {
               return cellValue === 'Комбинированное';
             }

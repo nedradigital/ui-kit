@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { isDefined } from '../../utils/type-guards';
 
-import { RowField, TableRow } from './Table';
+import { TableRow, ValueOf } from './Table';
 
 export type CustomFilterValue = any;
 export type CustomFilterComponentProps = {
@@ -11,14 +11,18 @@ export type CustomFilterComponentProps = {
   [key: string]: any;
 };
 
-export type CustomFilter<T extends TableRow> = {
-  filterer: (value: any, filterValue: CustomFilterValue) => boolean;
-  filterComponent: React.FC<CustomFilterComponentProps>;
-  filterComponentProps?: { [key: string]: any };
-  initialValue?: CustomFilterValue;
-};
+export type CustomFilter<T extends TableRow> = ValueOf<
+  {
+    [K in keyof T]: {
+      filterer: (value: T[K], filterValue: CustomFilterValue) => boolean;
+      filterComponent: React.FC<CustomFilterComponentProps>;
+      filterComponentProps?: { [key: string]: any };
+      initialValue?: CustomFilterValue;
+    };
+  }
+>;
 
-export type CustomFilters<T extends TableRow> = { [key in RowField<T>]?: CustomFilter<T> };
+export type CustomFilters<T extends TableRow> = { [key in keyof T]?: CustomFilter<T> };
 
 type CustomSavedFilter<T extends TableRow> = CustomFilter<T> & {
   value: CustomFilterValue;
@@ -26,7 +30,7 @@ type CustomSavedFilter<T extends TableRow> = CustomFilter<T> & {
 };
 
 export type CustomSavedFilters<T extends TableRow> = {
-  [field in RowField<T>]?: CustomSavedFilter<T>;
+  [field in keyof T]?: CustomSavedFilter<T>;
 };
 
 export const getSavedCustomFiltersInitialState = <T extends TableRow>(
@@ -37,13 +41,13 @@ export const getSavedCustomFiltersInitialState = <T extends TableRow>(
   }
 
   return Object.keys(filters).reduce<CustomSavedFilters<T>>((fieldAcc, fieldCur) => {
-    if (!fieldAcc[fieldCur]) {
+    if (!fieldAcc[fieldCur as keyof T]) {
       return {
         ...fieldAcc,
         [fieldCur]: {
-          ...filters[fieldCur],
-          isActive: isDefined(filters[fieldCur]?.initialValue),
-          value: filters[fieldCur]?.initialValue,
+          ...filters[fieldCur as keyof T],
+          isActive: isDefined(filters[fieldCur as keyof T]?.initialValue),
+          value: filters[fieldCur as keyof T]?.initialValue,
         },
       };
     }
@@ -54,9 +58,9 @@ export const getSavedCustomFiltersInitialState = <T extends TableRow>(
 
 export const fieldCustomFilterPresent = <T extends TableRow>(
   tableFilters: CustomFilters<T>,
-  field: RowField<T>,
+  field: keyof T,
 ): boolean => {
-  return Object.keys(tableFilters).includes(field);
+  return Object.keys(tableFilters).includes(field as string);
 };
 
 export const isSomeCustomFilterActive = <T extends TableRow>(
@@ -71,7 +75,7 @@ export const useCustomFilters = <T extends TableRow>(
 ): {
   savedCustomFilters: CustomSavedFilters<T>;
   updateCustomFilterValue: (
-    field: RowField<T>,
+    field: string,
     filterValue: { value: CustomFilterValue; isActive: boolean },
   ) => CustomSavedFilters<T>;
 } => {
@@ -80,13 +84,13 @@ export const useCustomFilters = <T extends TableRow>(
   );
 
   const updateCustomFilterValue = (
-    field: RowField<T>,
+    field: string,
     updatedFilter: { value: CustomFilterValue; isActive: boolean },
   ): CustomSavedFilters<T> => {
     const newSavedFilters: CustomSavedFilters<T> = {
       ...savedCustomFilters,
       [field]: {
-        ...savedCustomFilters[field],
+        ...savedCustomFilters[field as keyof T],
         value: updatedFilter.value,
         isActive: updatedFilter.isActive,
       },

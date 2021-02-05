@@ -3,14 +3,18 @@ import { useState } from 'react';
 import { isDefined } from '../../utils/type-guards';
 
 import { CustomSavedFilters } from './customFiltering';
-import { RowField, TableColumn, TableRow } from './Table';
+import { TableColumn, TableRow, ValueOf } from './Table';
 
-export type Filters<T extends TableRow> = Array<{
-  id: string;
-  name: string;
-  field: RowField<T>;
-  filterer: (value: any) => boolean;
-}>;
+export type Filters<T extends TableRow> = ValueOf<
+  {
+    [K in keyof T]: {
+      id: string;
+      name: string;
+      field: K extends string ? K : never;
+      filterer(value: T[K]): boolean;
+    };
+  }
+>[];
 
 export type SortByProps<T extends TableRow> = {
   sortingBy: keyof T;
@@ -30,7 +34,7 @@ type SelectedFiltersList = Array<{
 
 export const getOptionsForFilters = <T extends TableRow>(
   filters: Filters<T>,
-  field: RowField<T>,
+  field: string,
 ): { value: string; label: string }[] => {
   return filters
     .filter(({ field: filterField }) => filterField === field)
@@ -58,7 +62,7 @@ export const getSelectedFiltersInitialState = <T extends TableRow>(
 
 export const fieldFiltersPresent = <T extends TableRow>(
   tableFilters: Filters<T>,
-  field: RowField<T>,
+  field: string,
 ): boolean => {
   return tableFilters.some(({ field: filterField }) => filterField === field);
 };
@@ -79,7 +83,7 @@ export const getSelectedFiltersList = <T extends TableRow>({
   columns: Array<TableColumn<T>>;
 }): SelectedFiltersList => {
   return columns.reduce<SelectedFiltersList>((acc, cur) => {
-    const currentFieldFilters = selectedFilters[cur.accessor] || [];
+    const currentFieldFilters = selectedFilters[cur.accessor!] || [];
     let orderedFilters: SelectedFiltersList = [];
 
     if (currentFieldFilters.length) {
@@ -119,11 +123,11 @@ export const filterTableData = <T extends TableRow>({
   const mutableFilteredData = [];
 
   for (const row of data) {
-    const columnNames = Object.keys(row);
+    const columnNames = Object.keys(row) as (keyof T)[];
     let rowIsValid = true;
 
     for (const columnName of columnNames) {
-      const columnFilters = selectedFilters[columnName];
+      const columnFilters = selectedFilters[columnName as string];
       const columnCustomFilter = savedCustomFilters[columnName];
 
       if (columnCustomFilter && columnCustomFilter.isActive) {
@@ -144,7 +148,7 @@ export const filterTableData = <T extends TableRow>({
 
         for (const filterId of columnFilters) {
           const filter = filters.find(({ id }) => id === filterId);
-          const cellContent = row[columnName];
+          const cellContent = row[columnName as keyof T];
 
           if (filter && filter.filterer(cellContent)) {
             cellIsValid = true;
